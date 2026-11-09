@@ -1,0 +1,5 @@
+{
+ "version": 1,
+ "note": "Pins placed in the editor. x,z,y world metres (same convention as roads.json; y = terrain height at export + yOffset); nx,nz normalized 0..1; yaw degrees, 0 = +X (east), +90 = +Z (south): forward = (cos yaw, sin yaw) in (x,z); radius metres (0 = point marker). tags are lowercase slugs [a-z0-9_-]; name is optional but unique when set. The loader recomputes y from its own ground.",
+ "markers": []
+}

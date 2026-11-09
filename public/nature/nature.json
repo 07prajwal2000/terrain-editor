@@ -11,7 +11,16 @@
     5.45,
     1.94
    ],
-   "alphaCards": true
+   "alphaCards": true,
+   "trunkRadius": 0.16,
+   "lods": [
+    "BirchTree_1_LOD1",
+    "BirchTree_1_LOD2"
+   ],
+   "lodTris": [
+    1149,
+    257
+   ]
   },
   {
    "name": "BirchTree_2",
@@ -24,7 +33,16 @@
     7.57,
     2.81
    ],
-   "alphaCards": true
+   "alphaCards": true,
+   "trunkRadius": 0.14,
+   "lods": [
+    "BirchTree_2_LOD1",
+    "BirchTree_2_LOD2"
+   ],
+   "lodTris": [
+    1915,
+    443
+   ]
   },
   {
    "name": "BirchTree_3",
@@ -37,7 +55,16 @@
     5.75,
     2.27
    ],
-   "alphaCards": true
+   "alphaCards": true,
+   "trunkRadius": 0.13,
+   "lods": [
+    "BirchTree_3_LOD1",
+    "BirchTree_3_LOD2"
+   ],
+   "lodTris": [
+    1704,
+    406
+   ]
   },
   {
    "name": "BirchTree_4",
@@ -50,7 +77,16 @@
     4.21,
     1.84
    ],
-   "alphaCards": true
+   "alphaCards": true,
+   "trunkRadius": 0.12,
+   "lods": [
+    "BirchTree_4_LOD1",
+    "BirchTree_4_LOD2"
+   ],
+   "lodTris": [
+    890,
+    195
+   ]
   },
   {
    "name": "BirchTree_5",
@@ -63,7 +99,16 @@
     5.52,
     3.51
    ],
-   "alphaCards": true
+   "alphaCards": true,
+   "trunkRadius": 0.16,
+   "lods": [
+    "BirchTree_5_LOD1",
+    "BirchTree_5_LOD2"
+   ],
+   "lodTris": [
+    1129,
+    261
+   ]
   },
   {
    "name": "Bush",
@@ -102,7 +147,15 @@
     1.58,
     1.97
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "lods": [
+    "Bush_Common_Flowers_LOD1",
+    "Bush_Common_Flowers_LOD2"
+   ],
+   "lodTris": [
+    697,
+    82
+   ]
   },
   {
    "name": "Bush_Flowers",
@@ -206,7 +259,16 @@
     7.26,
     4.58
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.51,
+   "lods": [
+    "CommonTree_1_LOD1",
+    "CommonTree_1_LOD2"
+   ],
+   "lodTris": [
+    2635,
+    362
+   ]
   },
   {
    "name": "CommonTree_2",
@@ -219,7 +281,16 @@
     7.64,
     4.28
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.55,
+   "lods": [
+    "CommonTree_2_LOD1",
+    "CommonTree_2_LOD2"
+   ],
+   "lodTris": [
+    2230,
+    322
+   ]
   },
   {
    "name": "CommonTree_3",
@@ -232,7 +303,16 @@
     9.43,
     4.24
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.52,
+   "lods": [
+    "CommonTree_3_LOD1",
+    "CommonTree_3_LOD2"
+   ],
+   "lodTris": [
+    873,
+    200
+   ]
   },
   {
    "name": "CommonTree_4",
@@ -245,7 +325,16 @@
     9.44,
     3.76
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.52,
+   "lods": [
+    "CommonTree_4_LOD1",
+    "CommonTree_4_LOD2"
+   ],
+   "lodTris": [
+    1562,
+    223
+   ]
   },
   {
    "name": "CommonTree_5",
@@ -258,7 +347,16 @@
     7.01,
     4.22
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.48,
+   "lods": [
+    "CommonTree_5_LOD1",
+    "CommonTree_5_LOD2"
+   ],
+   "lodTris": [
+    1523,
+    185
+   ]
   },
   {
    "name": "DeadTree_1",
@@ -271,7 +369,16 @@
     9.5,
     5.75
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.57,
+   "lods": [
+    "DeadTree_1_LOD1",
+    "DeadTree_1_LOD2"
+   ],
+   "lodTris": [
+    1539,
+    349
+   ]
   },
   {
    "name": "DeadTree_10",
@@ -284,7 +391,16 @@
     7.13,
     3.24
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.29,
+   "lods": [
+    "DeadTree_10_LOD1",
+    "DeadTree_10_LOD2"
+   ],
+   "lodTris": [
+    802,
+    191
+   ]
   },
   {
    "name": "DeadTree_2",
@@ -297,7 +413,16 @@
     11.49,
     6.38
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.61,
+   "lods": [
+    "DeadTree_2_LOD1",
+    "DeadTree_2_LOD2"
+   ],
+   "lodTris": [
+    1636,
+    392
+   ]
   },
   {
    "name": "DeadTree_3",
@@ -310,7 +435,16 @@
     13.28,
     6.43
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.75,
+   "lods": [
+    "DeadTree_3_LOD1",
+    "DeadTree_3_LOD2"
+   ],
+   "lodTris": [
+    1428,
+    339
+   ]
   },
   {
    "name": "DeadTree_4",
@@ -323,7 +457,16 @@
     12.77,
     7.73
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.94,
+   "lods": [
+    "DeadTree_4_LOD1",
+    "DeadTree_4_LOD2"
+   ],
+   "lodTris": [
+    1404,
+    337
+   ]
   },
   {
    "name": "DeadTree_5",
@@ -336,7 +479,16 @@
     16.44,
     8.41
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.96,
+   "lods": [
+    "DeadTree_5_LOD1",
+    "DeadTree_5_LOD2"
+   ],
+   "lodTris": [
+    1393,
+    335
+   ]
   },
   {
    "name": "DeadTree_6",
@@ -349,7 +501,16 @@
     6.41,
     3.3
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.29,
+   "lods": [
+    "DeadTree_6_LOD1",
+    "DeadTree_6_LOD2"
+   ],
+   "lodTris": [
+    746,
+    179
+   ]
   },
   {
    "name": "DeadTree_7",
@@ -362,7 +523,16 @@
     6.31,
     5.03
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.32,
+   "lods": [
+    "DeadTree_7_LOD1",
+    "DeadTree_7_LOD2"
+   ],
+   "lodTris": [
+    875,
+    210
+   ]
   },
   {
    "name": "DeadTree_8",
@@ -375,7 +545,16 @@
     6.28,
     4.8
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.31,
+   "lods": [
+    "DeadTree_8_LOD1",
+    "DeadTree_8_LOD2"
+   ],
+   "lodTris": [
+    1236,
+    294
+   ]
   },
   {
    "name": "DeadTree_9",
@@ -388,7 +567,8 @@
     3.3,
     0.72
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.12
   },
   {
    "name": "Fern_1",
@@ -648,7 +828,16 @@
     6.64,
     4.9
    ],
-   "alphaCards": true
+   "alphaCards": true,
+   "trunkRadius": 0.29,
+   "lods": [
+    "MapleTree_1_LOD1",
+    "MapleTree_1_LOD2"
+   ],
+   "lodTris": [
+    962,
+    230
+   ]
   },
   {
    "name": "MapleTree_2",
@@ -661,7 +850,16 @@
     6.71,
     6.24
    ],
-   "alphaCards": true
+   "alphaCards": true,
+   "trunkRadius": 0.32,
+   "lods": [
+    "MapleTree_2_LOD1",
+    "MapleTree_2_LOD2"
+   ],
+   "lodTris": [
+    1199,
+    287
+   ]
   },
   {
    "name": "MapleTree_3",
@@ -674,7 +872,16 @@
     6.99,
     6.61
    ],
-   "alphaCards": true
+   "alphaCards": true,
+   "trunkRadius": 0.31,
+   "lods": [
+    "MapleTree_3_LOD1",
+    "MapleTree_3_LOD2"
+   ],
+   "lodTris": [
+    1669,
+    398
+   ]
   },
   {
    "name": "MapleTree_4",
@@ -687,7 +894,16 @@
     3.59,
     2.43
    ],
-   "alphaCards": true
+   "alphaCards": true,
+   "trunkRadius": 0.12,
+   "lods": [
+    "MapleTree_4_LOD1",
+    "MapleTree_4_LOD2"
+   ],
+   "lodTris": [
+    638,
+    72
+   ]
   },
   {
    "name": "MapleTree_5",
@@ -700,7 +916,16 @@
     7.28,
     5.08
    ],
-   "alphaCards": true
+   "alphaCards": true,
+   "trunkRadius": 0.29,
+   "lods": [
+    "MapleTree_5_LOD1",
+    "MapleTree_5_LOD2"
+   ],
+   "lodTris": [
+    1126,
+    268
+   ]
   },
   {
    "name": "Mushroom_Common",
@@ -947,7 +1172,16 @@
     7.32,
     4.54
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.21,
+   "lods": [
+    "Pine_1_LOD1",
+    "Pine_1_LOD2"
+   ],
+   "lodTris": [
+    986,
+    232
+   ]
   },
   {
    "name": "Pine_2",
@@ -960,7 +1194,16 @@
     7.38,
     5.22
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.21,
+   "lods": [
+    "Pine_2_LOD1",
+    "Pine_2_LOD2"
+   ],
+   "lodTris": [
+    910,
+    215
+   ]
   },
   {
    "name": "Pine_3",
@@ -973,7 +1216,16 @@
     7.39,
     4
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.76,
+   "lods": [
+    "Pine_3_LOD1",
+    "Pine_3_LOD2"
+   ],
+   "lodTris": [
+    1232,
+    291
+   ]
   },
   {
    "name": "Pine_4",
@@ -986,7 +1238,16 @@
     10.24,
     5.37
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 1.34,
+   "lods": [
+    "Pine_4_LOD1",
+    "Pine_4_LOD2"
+   ],
+   "lodTris": [
+    833,
+    189
+   ]
   },
   {
    "name": "Pine_5",
@@ -999,7 +1260,16 @@
     8.72,
     6.22
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 0.38,
+   "lods": [
+    "Pine_5_LOD1",
+    "Pine_5_LOD2"
+   ],
+   "lodTris": [
+    411,
+    97
+   ]
   },
   {
    "name": "Plant_1",
@@ -1233,7 +1503,16 @@
     16.73,
     11.55
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 1.3,
+   "lods": [
+    "TwistedTree_1_LOD1",
+    "TwistedTree_1_LOD2"
+   ],
+   "lodTris": [
+    2390,
+    559
+   ]
   },
   {
    "name": "TwistedTree_2",
@@ -1246,7 +1525,16 @@
     18.95,
     9.2
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 1.17,
+   "lods": [
+    "TwistedTree_2_LOD1",
+    "TwistedTree_2_LOD2"
+   ],
+   "lodTris": [
+    2282,
+    542
+   ]
   },
   {
    "name": "TwistedTree_3",
@@ -1259,7 +1547,16 @@
     16.07,
     11.51
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 1.18,
+   "lods": [
+    "TwistedTree_3_LOD1",
+    "TwistedTree_3_LOD2"
+   ],
+   "lodTris": [
+    2517,
+    601
+   ]
   },
   {
    "name": "TwistedTree_4",
@@ -1272,7 +1569,16 @@
     18.74,
     11.29
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 1.21,
+   "lods": [
+    "TwistedTree_4_LOD1",
+    "TwistedTree_4_LOD2"
+   ],
+   "lodTris": [
+    2400,
+    569
+   ]
   },
   {
    "name": "TwistedTree_5",
@@ -1285,7 +1591,16 @@
     15.66,
     9.39
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "trunkRadius": 1.15,
+   "lods": [
+    "TwistedTree_5_LOD1",
+    "TwistedTree_5_LOD2"
+   ],
+   "lodTris": [
+    2524,
+    584
+   ]
   }
  ]
 }

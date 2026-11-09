@@ -15,7 +15,11 @@
     "test:bridges": "node scripts/test-bridges.mjs",
     "test:ramps": "node scripts/test-ramps.mjs",
     "test:vehicles": "node scripts/test-vehicles.mjs",
-    "cars": "node scripts/cars/run.mjs"
+    "cars": "node scripts/cars/run.mjs",
+    "nature:lods": "node scripts/nature/build.mjs nature --lods-only",
+    "city:lods": "node scripts/nature/build.mjs city --lods-only",
+    "test:cityfill": "node scripts/test-city-fill.mjs",
+    "test:scatter": "node scripts/test-scatter.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",
@@ -25,6 +29,7 @@
     "@gltf-transform/core": "^4.5.1",
     "@gltf-transform/extensions": "^4.5.1",
     "@gltf-transform/functions": "^4.5.1",
+    "meshoptimizer": "^1.3.0",
     "sharp": "^0.35.5",
     "vite": "^8.3.7"
   }

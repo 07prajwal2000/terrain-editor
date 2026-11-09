@@ -505,7 +505,14 @@
     28,
     16.64
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "body": {
+    "x0": -9,
+    "x1": 11,
+    "z0": -16,
+    "z1": 0,
+    "h": 28
+   }
   },
   {
    "name": "Building_Medium_2_001",
@@ -518,7 +525,14 @@
     25,
     13.06
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "body": {
+    "x0": -7.12,
+    "x1": 7.09,
+    "z0": -11.96,
+    "z1": 0.21,
+    "h": 25
+   }
   },
   {
    "name": "Building_Small_1",
@@ -531,7 +545,14 @@
     17.01,
     14.54
    ],
-   "alphaCards": false
+   "alphaCards": false,
+   "body": {
+    "x0": -7.17,
+    "x1": 5.17,
+    "z0": -12.17,
+    "z1": 0.17,
+    "h": 17.01
+   }
   },
   {
    "name": "Cornice_Brick_90Angle_L",

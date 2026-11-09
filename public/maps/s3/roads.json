@@ -1,0 +1,5 @@
+{
+ "formatVersion": 1,
+ "note": "nx,nz normalized 0..1 edge-to-edge; x,z world metres (x=nx*worldSize, z=nz*worldSize); y terrain height metres. bridge=true: segment to the NEXT point is a bridge. Curve: uniform Catmull-Rom through points.",
+ "roads": []
+}

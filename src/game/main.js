@@ -1,6 +1,10 @@
 // Game page: drive one car around a map. URL params:
 //   ?map=/maps/sample/   map folder (default sample)         ?car=<id>   car id (default: garage choice, else first drivable)
 //   ?testRamp            dev: a static ramp 30 m ahead of the spawn (spawn then faces +Z)
+//   ?scatter=0           disable the nature scatter (trees, bushes, rocks, grass: world/scatter.js)     ?scatterQuality=low|medium|high (default medium)
+//   ?scatterShadows=1    let near trees cast shadows (expensive)
+//   ?city=0              disable the city fill (buildings + street props along city roads: world/cityFill.js)     ?cityQuality=low|medium|high (default medium)
+//   ?cityShadows=1       let near buildings cast shadows (expensive)
 // Mouse look: click the canvas (pointer lock), mouse orbits the camera, B looks back, right stick on a pad; settings in the tuning panel (Camera folder).
 //   ?spawn=x,z[,yawDeg]  dev: override the spawn (yaw like markers: 0 = +X east, 90 = +Z south)
 // Debug hook: window.__game = { vehicle, map, world, input, camera, stats, THREE, reset(), setInput(obj|null) }.
@@ -18,6 +22,8 @@ import { newLook, stepLook, lookYaw, loadSettings } from '../vehicles/cameraLook
 import { createHud } from '../vehicles/hud.js';
 import { createTuningPanel } from '../vehicles/tuningPanel.js';
 import { addWedgeCollider, wedgeMesh } from '../vehicles/wedge.js';
+import { createScatter } from '../world/scatter.js';
+import { createCity } from '../world/cityFill.js';
 
 const params = new URLSearchParams(location.search);
 const mapUrl = params.get('map') || '/maps/sample/';
@@ -80,6 +86,17 @@ async function main() {
     addWedgeCollider(RAPIER, world, o); scene.add(wedgeMesh(THREE, o));
   }
 
+  // ---- city fill (buildings along city roads, bollards / planters; solid buildings near the car). Created BEFORE the scatter so trees keep off the buildings. ?city=0 turns it off ----
+  const spawnExcl = [{ x: spawn.x, z: spawn.z, r: 12 }];
+  const city = params.get('city') === '0' ? null : createCity({ THREE, map, scene, camera, RAPIER, physicsWorld: world, baseUrl: mapUrl,
+    options: { quality: params.get('cityQuality') || 'medium', shadows: params.get('cityShadows') === '1', exclusions: spawnExcl } });
+  if (city) { city.ready.catch(() => {}); await city.genReady; }   // generator only (tiny fetch); the 10 MB GLB loads in the background
+
+  // ---- nature scatter (trees / bushes / rocks / grass; solid trunks + rocks near the car). Loads in the background; ?scatter=0 turns it off ----
+  const scatter = params.get('scatter') === '0' ? null : createScatter({ THREE, map, scene, camera, RAPIER, physicsWorld: world, baseUrl: mapUrl,
+    options: { quality: params.get('scatterQuality') || 'medium', shadows: params.get('scatterShadows') === '1', exclusions: spawnExcl, extraBlocked: city && city.gen && city.gen.hasCity() ? city.blocked : null } });
+  if (scatter) scatter.ready.catch(() => {});
+
   const input = createInput();
   input.mouseLook(renderer.domElement); // click the canvas = pointer lock = free look (cameraLook.js)
   const settings = loadSettings(), look = newLook(), lookView = { yaw: 0, pitch: 0 };
@@ -137,6 +154,8 @@ async function main() {
     // shadow rig
     sun.target.position.set(pose.x, pose.y, pose.z); sun.position.set(pose.x + sunDir.x * 150, pose.y + sunDir.y * 150, pose.z + sunDir.z * 150);
     sun.target.updateMatrixWorld();
+    city?.update(dt, p);    // buildings: cull / LOD sort for this view, keeps the building + bollard colliders round the car
+    scatter?.update(dt, p); // after the camera moved: culls / LOD-sorts the instances for this view, keeps the trunk colliders round the car
     renderer.render(scene, camera);
 
     fpsEma += (1 / Math.max(dt, 1e-4) - fpsEma) * 0.05; frameCount++;
@@ -147,7 +166,7 @@ async function main() {
   requestAnimationFrame((t) => { last = t; frame(t); });
 
   window.__game = { THREE, RAPIER, vehicle, map, world, input, camera, chase, scene, renderer, stats, car, profile,
-    reset: resetUpright, setInput: (o) => { input.override = o; }, tuning, spawn };
+    scatter, city, reset: resetUpright, setInput: (o) => { input.override = o; }, tuning, spawn };
 }
 
 // marker -> else centre-nearest drivable spot. returns { x, z, yaw } with yaw in Vehicle convention (forward = (sin yaw, cos yaw) in x,z)
