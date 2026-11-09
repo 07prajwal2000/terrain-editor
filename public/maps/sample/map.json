@@ -1,0 +1,73 @@
+{
+ "formatVersion": 1,
+ "N": 2048,
+ "worldSizeMeters": 500,
+ "maxHeightMeters": 70,
+ "cellSizeMeters": 0.244140625,
+ "seaLevel": 0.1,
+ "seaLevelMeters": 7,
+ "classes": [
+  {
+   "id": 0,
+   "name": "grass",
+   "color": "#5da130"
+  },
+  {
+   "id": 1,
+   "name": "forest",
+   "color": "#1f5c2a"
+  },
+  {
+   "id": 2,
+   "name": "dirt",
+   "color": "#8a6a43"
+  },
+  {
+   "id": 3,
+   "name": "sand",
+   "color": "#e0cf8f"
+  },
+  {
+   "id": 4,
+   "name": "rock",
+   "color": "#7d7d7d"
+  },
+  {
+   "id": 5,
+   "name": "snow",
+   "color": "#f2f6ff"
+  },
+  {
+   "id": 6,
+   "name": "road",
+   "color": "#333333"
+  },
+  {
+   "id": 7,
+   "name": "city",
+   "color": "#b0a0c0"
+  }
+ ],
+ "files": {
+  "height16": "heightmap16.png",
+  "heightRaw16": "heightmap.r16",
+  "splat0": "splat0.png",
+  "splat1": "splat1.png",
+  "biomeColor": "biome_color.png",
+  "water": "water.png",
+  "roads": "roads.json",
+  "markers": "markers.json"
+ },
+ "encodings": {
+  "height": "uint16 0..65535 -> normalized v/65535 -> metres v/65535*maxHeightMeters. PNG is big-endian (PNG spec), .r16 is little-endian.",
+  "splat0": "RGBA8 = weights of classes 0,1,2,3; splat1: classes 4,5,6,7. Straight alpha (not premultiplied). Sum of 8 weights = 255 per pixel.",
+  "water": "uint16 PNG. 0 = no lake/river water; v>=1 -> surface normalized (v-1)/65534, metres (v-1)/65534*maxHeightMeters. Ocean is NOT included: ocean = terrain height < seaLevel."
+ },
+ "coordinates": {
+  "origin": "top-left corner of image = world (0,0)",
+  "xAxis": "+X = increasing pixel column (right)",
+  "zAxis": "+Z = increasing pixel row (down the image)",
+  "yAxis": "+Y up; metres = normalized height*maxHeightMeters",
+  "pixelToWorld": "pixel (i,j) centre -> x=(i+0.5)*cellSizeMeters, z=(j+0.5)*cellSizeMeters; normalized u=x/worldSizeMeters"
+ }
+}

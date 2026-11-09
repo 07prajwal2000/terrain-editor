@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Terrain Editor (Vite)</title>
+<!--
+=====================================================================================
+ TERRAIN / BIOME MAP EDITOR  -  single file, no dependencies, works offline (file://)
+ EXPORT FORMAT + COORDINATE CONVENTION  (the game loader is written against this)
+=====================================================================================
+ All grids are N x N (N = 512 / 1024 / 2048, written to map.json), row-major,
+ row 0 = TOP row of the editor view.
+
+ COORDINATES
+   - The map covers the square [0, worldSizeMeters] x [0, worldSizeMeters].
+   - Pixel (px, py): px = column (0 = left), py = row (0 = top). ORIGIN = TOP-LEFT
+     corner of the image = world (x=0, z=0).
+   - World +X = increasing px (to the right / "east").
+   - World +Z = increasing py (DOWN the image / "south").   (world z = py/N * worldSize)
+   - World +Y = up; y metres = normalized height * maxHeightMeters.
+   - Pixel (i,j) covers world x in [i*cell,(i+1)*cell], z in [j*cell,(j+1)*cell] with
+     cell = worldSizeMeters / N; its sample point is the pixel CENTRE (i+0.5, j+0.5)*cell.
+     Normalized map coordinates u,v in 0..1 are edge-to-edge: x = u*worldSize, z = v*worldSize,
+     continuous pixel position = u*N (so u=(i+0.5)/N is the centre of pixel i).
+     Sample height bilinearly at continuous pixel pos (u*N-0.5, v*N-0.5).
+     (If you build an N x N vertex grid spanning the world, resample/scale accordingly.)
+
+ FILES  (all written by Export into one folder)
+   heightmap16.png   16-bit grayscale PNG, N x N. Sample v (0..65535, big-endian per PNG spec)
+                     -> normalized height = v/65535 -> metres = v/65535 * maxHeightMeters.
+   heightmap.r16     Raw 16-bit UNSIGNED LITTLE-ENDIAN, N*N samples, row-major, same values.
+   splat0.png        8-bit RGBA PNG: R,G,B,A = weight of classes 0,1,2,3 (grass,forest,dirt,sand).
+   splat1.png        8-bit RGBA PNG: R,G,B,A = weight of classes 4,5,6,7 (rock,snow,road,city).
+                     Weights are stored raw (straight, NOT premultiplied alpha). Per pixel, the 8
+                     channels of splat0+splat1 sum to exactly 255. Weight/255 = coverage 0..1.
+   biome_color.png   8-bit RGB PNG, colour of the dominant class per pixel (human preview only).
+   water.png         16-bit grayscale PNG, N x N. Lake/river water surface height:
+                       value 0            -> no lake/river water at this pixel
+                       value v in 1..65535-> water surface normalized = (v-1)/65534,
+                                             metres = (v-1)/65534 * maxHeightMeters
+                     A pixel only counts as water where surface > terrain height (otherwise exported 0).
+                     water mask = (value != 0). OCEAN IS NOT IN THIS FILE: ocean = every pixel whose
+                     terrain height < seaLevel (see map.json seaLevel / seaLevelMeters), surface at seaLevel.
+   roads.json        { roads: [ { id, widthMeters, points: [ { nx, nz, x, y, z, bridge } ] } ] }
+                     nx,nz = normalized 0..1 (edge-to-edge, see above); x,z = world metres
+                     (x = nx*worldSize, z = nz*worldSize); y = terrain height in metres sampled there.
+                     bridge=true on a point means the segment from that point to the NEXT point is
+                     elevated (bridge). Path curve = uniform Catmull-Rom spline through the points
+                     (end points duplicated as phantom neighbours), evaluated in the x,z plane.
+   markers.json      { version, note, markers: [ { id, name, tags[], color, x, y, z, nx, nz, yaw, radius, props{}, yOffset } ] }
+                     Pins for the game to look up by name/tag and spawn things at. x,z = world metres (same convention as
+                     roads.json), nx,nz = normalized 0..1; y = terrain height at export (editor ground) + yOffset, in metres - the
+                     game loader recomputes y from its own heightAt + yOffset. Only x,z are stored in the editor; height is derived.
+                     name: optional, unique when set (the editor warns on duplicates, never renames). tags: lowercase slugs
+                     [a-z0-9_-]. color: '#rrggbb'. yaw: DEGREES, 0 = +X (east), +90 = +Z (south): forward = (cos yaw, sin yaw) in
+                     (x,z). radius: metres, 0 = point marker (>0 = trigger area). props: free-form string->string map.
+   map.json          N, worldSizeMeters, maxHeightMeters, cellSizeMeters, seaLevel (normalized),
+                     seaLevelMeters, class list {id,name,color}, file names (incl. markers), encodings, coordinate text.
+
+ PROJECT FILE  .tmap :  bytes 0-3 "TMAP", bytes 4-7 uint32 LE headerLength, then headerLength bytes of
+   UTF-8 JSON header (settings, roads, N, layers[{name,type,offset,byteLength}]), then raw typed arrays
+   (little-endian). Layer offsets are relative to the start of the data section (= 8 + headerLength).
+   Layers: height f32, water f32 (-1 = none), weight0..weight7 u8. The header also carries markers[] / nextMarkerId.
+=====================================================================================
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#16181c;--panel:#1e2127;--panel2:#262a32;--line:#343944;--fg:#d6dae2;--dim:#8b93a3;--acc:#4da3ff;--accbg:#1f3a57}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:12px/1.35 system-ui,Segoe UI,sans-serif;overflow:hidden}
+body{display:grid;grid-template-rows:34px 1fr 24px;grid-template-columns:100%}
+#top{display:flex;gap:6px;align-items:center;padding:0 8px;background:var(--panel);border-bottom:1px solid var(--line)}
+#top b{margin-right:8px;color:var(--acc)}
+#top .sp{flex:1}
+#main{display:grid;grid-template-columns:64px 1fr 250px;min-height:0}
+#left{background:var(--panel);border-right:1px solid var(--line);padding:4px;display:flex;flex-direction:column;gap:3px;overflow:auto}
+#right{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;overflow-x:hidden;padding:4px 8px 20px}
+#right input[type=text],#right textarea{min-width:0;box-sizing:border-box}
+#stage{display:flex;min-width:0;min-height:0}
+#wrap{position:relative;min-width:0;min-height:0;overflow:hidden;flex:1}
+#pv{position:relative;min-width:0;min-height:0;overflow:hidden;flex:1;display:none;background:#9ec9e8}
+#pv canvas{display:block;position:absolute;left:0;top:0}
+#pvhint{position:absolute;left:8px;bottom:8px;z-index:2;background:rgba(15,18,24,.7);color:#cfd6e0;padding:3px 8px;border-radius:4px;font-size:11px;pointer-events:none}
+#main.mode-split #pv{display:block;border-left:2px solid var(--line)}
+#main.mode-preview #pv{display:block}
+#main.mode-preview #wrap{display:none}
+.seg{display:inline-flex;margin-left:8px}.seg button{border-radius:0}.seg button:first-child{border-radius:4px 0 0 4px}.seg button:last-child{border-radius:0 4px 4px 0}
+#mv{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+#mklist{max-height:130px;overflow:auto;border:1px solid var(--line);border-radius:3px;margin:4px 0}
+#mklist div{padding:2px 6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#mklist div.on{background:var(--accbg)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;border:1px solid #000}
+.chips{display:flex;flex-wrap:wrap;gap:3px;margin:3px 0}.chip{padding:0 7px!important;border-radius:9px!important;font-size:11px}.chip.on{background:var(--accbg);border-color:var(--acc)}
+.mkcolors{display:flex;flex-wrap:wrap;gap:3px;margin:4px 0;align-items:center}.mkcolors div{width:18px;height:18px;border-radius:3px;border:2px solid transparent;cursor:pointer}.mkcolors div.on{border-color:#fff}
+.mkcolors input{width:28px;height:22px;padding:0;border:0;background:none}
+
+#gv{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+#cv{position:absolute;left:0;top:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+#status{background:var(--panel);border-top:1px solid var(--line);padding:3px 10px;color:var(--dim);white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:var(--fg)}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:3px 9px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.on{background:var(--accbg);border-color:var(--acc)}
+#left button{padding:5px 2px;text-align:center;font-size:11px;line-height:1.15}
+#left button kbd{display:block;color:var(--dim);font-size:9px}
+select,input[type=number],input[type=text]{background:var(--panel2);border:1px solid var(--line);border-radius:3px;padding:2px 4px}
+input[type=number]{width:70px}
+h4{margin:10px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:2px}
+.row{display:flex;align-items:center;gap:6px;margin:3px 0}
+.row label{width:84px;color:var(--dim);flex:none}
+.row input[type=range]{flex:1;min-width:0}
+.row .v{width:38px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
+.sw{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:4px 0}
+.sw div{height:34px;border:2px solid transparent;border-radius:4px;font-size:10px;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;display:flex;align-items:flex-end;justify-content:center;cursor:pointer}
+.sw div.on{border-color:#fff}
+#roadlist{max-height:110px;overflow:auto;border:1px solid var(--line);border-radius:3px;margin:4px 0}
+#roadlist div{padding:2px 6px;cursor:pointer}
+#roadlist div.on{background:var(--accbg)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:10}
+.overlay[hidden]{display:none}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 18px;max-width:560px;max-height:90vh;overflow:auto}
+.box h3{margin:0 0 8px}
+.box table td{padding:1px 10px 1px 0}
+kbd{background:var(--panel2);border:1px solid var(--line);border-radius:3px;padding:0 4px}
+#toast{position:fixed;bottom:34px;left:50%;transform:translateX(-50%);background:#000c;padding:6px 12px;border-radius:4px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.small{color:var(--dim);font-size:11px}
+</style>
+</head>
+<body>
+<div id="top">
+  <b>Terrain Editor</b>
+  <button id="bNew">New</button><button id="bOpen">Open</button><button id="bSave">Save</button><button id="bExport">Export</button>
+  <button id="bUndo">Undo</button><button id="bRedo">Redo</button>
+  <span id="modeBtns" class="seg"><button data-m="paint" class="on" title="Tab cycles Paint / Split / Preview">Paint</button><button data-m="split">Split</button><button data-m="preview">Preview</button></span>
+  <span class="sp"></span>
+  <span id="saveInfo" class="small"></span>
+  <button id="bHelp">Help (F1)</button>
+</div>
+<div id="main" class="mode-paint">
+  <div id="left"></div>
+  <div id="stage"><div id="wrap"><canvas id="cv"></canvas><canvas id="gv"></canvas><canvas id="mv"></canvas></div><div id="pv"><div id="pvhint">3D preview - the game's own loader. Orbit: drag &middot; Pan: right-drag &middot; Zoom: wheel. Painting happens in the 2D view.</div></div></div>
+  <div id="right"></div>
+</div>
+<div id="status"></div>
+<div id="toast"></div>
+<input type="file" id="fileIn" accept=".tmap" hidden>
+
+<div class="overlay" id="newDlg" hidden><div class="box">
+  <h3>New map</h3>
+  <div class="row"><label>Resolution</label><select id="nN"><option>512</option><option selected>1024</option><option>2048</option></select></div>
+  <div class="row"><label>World size (m)</label><input type="number" id="nW" value="2000" min="100" step="100"></div>
+  <div class="row"><label>Max height (m)</label><input type="number" id="nH" value="200" min="10" step="10"></div>
+  <div class="row"><label>Sea level (0-1)</label><input type="number" id="nS" value="0.1" min="0" max="1" step="0.01"></div>
+  <div class="row"><label>Start height</label><input type="number" id="nB" value="0.2" min="0" max="1" step="0.01"></div>
+  <div class="row"><span class="sp"></span><button id="nCancel">Cancel</button><button id="nOk" class="on">Create</button></div>
+</div></div>
+
+<div class="overlay" id="helpDlg" hidden><div class="box">
+  <h3>Shortcuts</h3>
+  <table>
+    <tr><td><kbd>R</kbd> Raise (Shift = lower)</td><td><kbd>L</kbd> Lower</td></tr>
+    <tr><td><kbd>S</kbd> Smooth</td><td><kbd>F</kbd> Flatten (Alt+click = sample height)</td></tr>
+    <tr><td><kbd>M</kbd> Mountain</td><td><kbd>H</kbd> Hills</td></tr>
+    <tr><td><kbd>W</kbd> Water</td><td><kbd>E</kbd> Erase water</td></tr>
+    <tr><td><kbd>P</kbd> Paint surface</td><td><kbd>T</kbd> Road tool</td></tr>
+    <tr><td><kbd>V</kbd> Pan tool</td><td><kbd>G</kbd> Toggle grid</td></tr>
+    <tr><td><kbd>K</kbd> Marker tool (Enter = drop at cursor)</td><td><kbd>Tab</kbd> Paint / Split / Preview</td></tr>
+    <tr><td><kbd>[</kbd> <kbd>]</kbd> Brush radius</td><td><kbd>{</kbd> <kbd>}</kbd> Brush hardness</td></tr>
+    <tr><td>Space+drag / middle mouse: pan</td><td>Wheel: zoom to cursor</td></tr>
+    <tr><td><kbd>Ctrl+Z</kbd> Undo</td><td><kbd>Ctrl+Y</kbd> / <kbd>Ctrl+Shift+Z</kbd> Redo</td></tr>
+    <tr><td><kbd>Ctrl+S</kbd> Save .tmap</td><td><kbd>F1</kbd> / <kbd>?</kbd> This help</td></tr>
+  </table>
+  <h3 style="margin-top:10px">Road tool</h3>
+  <div class="small">Click: add waypoint (starts a new road if none is being drawn). Drag point: move. Click on a line: insert point.
+  Delete: remove selected point. Enter / double-click: finish road. Pick roads in the list; "Continue" appends to the selected road.
+  Per-point Bridge checkbox: the segment from that point to the next is a bridge (dashed, not baked).</div>
+  <h3 style="margin-top:10px">Hints</h3>
+  <div class="small">Hardness 1 = hard cliff/plateau edges, hardness 0 = soft rolling hills. Holding the mouse still keeps applying the brush.
+  Flatten samples height at stroke start unless a typed target is enabled. Water tool: click on the terrain height you want
+  as lake level, drag to carve a lake there. Autosave to the browser runs ~10 s after changes.</div>
+  <div class="row" style="margin-top:10px"><span class="sp"></span><button id="helpClose" class="on">Close</button></div>
+</div></div>
+
+<script type="module" src="/src/editor/editor.js"></script>
+</body>
+</html>

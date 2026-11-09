@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monster Mash - garage</title>
+</head>
+<body class="ui">
+<header class="gr-top">
+  <h1>Garage</h1>
+  <div class="gr-filters" role="group" aria-label="Filter cars">
+    <button class="ui-box ui-btn" data-filter="all" data-sfx="click" aria-pressed="true">All</button>
+    <button class="ui-box ui-btn" data-filter="drivable" data-sfx="click" aria-pressed="false">Drivable</button>
+  </div>
+  <button id="mute" class="ui-box ui-btn gr-mute" data-sfx="none" aria-pressed="false"><img alt="" width="16" height="16"><span></span></button>
+</header>
+<main>
+  <p id="msg" class="gr-msg" role="status">Loading cars...</p>
+  <ul id="grid" class="gr-grid"></ul>
+</main>
+<footer class="gr-bar">
+  <div id="picked" class="gr-picked" aria-live="polite">Pick a car</div>
+  <a id="drive" class="ui-box ui-box--green ui-btn ui-btn--big gr-drive" data-sfx="click" href="/" hidden>Drive</a>
+  <button id="drive-off" class="ui-box ui-btn ui-btn--big gr-drive" disabled>Pick a car</button>
+</footer>
+<script type="module" src="/src/garage/garage.js"></script>
+</body>
+</html>

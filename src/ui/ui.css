@@ -1,0 +1,72 @@
+/* Shared menu look (garage, later HUD / pause / map select). Built on the Kenney UI pack in /ui (CC0, Vector SVGs).
+   .ui-box = 9-sliced SVG panel; .ui-btn = clickable box; .ui-badge = small pill. Colour variants: --blue --green --yellow --red.
+   Everything is SVG via border-image, so it stays crisp at any zoom. */
+@font-face {
+  font-family: 'Kenney Future';
+  src: url('/ui/Font/Kenney%20Future.ttf') format('truetype');
+  font-display: swap;
+}
+
+:root {
+  --ui-font: 'Kenney Future', 'Segoe UI', system-ui, sans-serif;
+  --ui-bg: #1d2033;
+  --ui-text: #f3f4fa;
+  --ui-ink: #2b2d42;       /* text on light panels */
+  --ui-ink-soft: #666880;  /* Kenney grey-blue */
+  --ui-focus: #ffcc00;
+  --ui-grey: url('/ui/Vector/Grey/button_rectangle_depth_flat.svg');
+  --ui-blue: url('/ui/Vector/Blue/button_rectangle_depth_flat.svg');
+  --ui-green: url('/ui/Vector/Green/button_rectangle_depth_flat.svg');
+  --ui-yellow: url('/ui/Vector/Yellow/button_rectangle_depth_flat.svg');
+  --ui-red: url('/ui/Vector/Red/button_rectangle_depth_flat.svg');
+}
+
+body.ui {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top, #2b3050 0%, var(--ui-bg) 60%);
+  color: var(--ui-text);
+  font: 14px/1.4 var(--ui-font);
+}
+
+.ui-box {
+  --bi: var(--ui-grey);
+  box-sizing: border-box;
+  border: solid transparent;
+  border-width: 8px 8px 12px;
+  border-image: var(--bi) 8 8 12 fill / 8px 8px 12px;
+  color: var(--ui-ink);
+}
+.ui-box--blue   { --bi: var(--ui-blue);   color: #fff; }
+.ui-box--green  { --bi: var(--ui-green);  color: #fff; }
+.ui-box--yellow { --bi: var(--ui-yellow); color: var(--ui-ink); }
+.ui-box--red    { --bi: var(--ui-red);    color: #fff; }
+
+.ui-btn {
+  font: inherit;
+  cursor: pointer;
+  padding: 4px 14px;
+  background: none;
+  transition: transform .06s, filter .12s;
+}
+.ui-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.ui-btn:active:not(:disabled) { transform: translateY(2px); }
+.ui-btn:disabled { cursor: not-allowed; filter: grayscale(1) opacity(.55); }
+.ui-btn--big { font-size: 20px; padding: 8px 36px; }
+
+.ui-badge {
+  --bi: var(--ui-green);
+  display: inline-block;
+  border-width: 4px 4px 6px;
+  border-image: var(--bi) 8 8 12 fill / 4px 4px 6px;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.ui-badge.ui-box--yellow { --bi: var(--ui-yellow); color: var(--ui-ink); }
+.ui-badge.ui-box--grey { color: var(--ui-ink); }
+
+:focus-visible { outline: 3px solid var(--ui-focus); outline-offset: 2px; }

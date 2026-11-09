@@ -1,0 +1,20 @@
+{
+  "name": "monster-mash",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test:loader": "node scripts/test-loader.mjs",
+    "test:vehicles": "node scripts/test-vehicles.mjs",
+    "cars": "node scripts/cars/run.mjs"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.7"
+  }
+}

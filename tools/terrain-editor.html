@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Terrain Editor</title>
+<!--
+=====================================================================================
+ TERRAIN / BIOME MAP EDITOR  -  single file, no dependencies, works offline (file://)
+ EXPORT FORMAT + COORDINATE CONVENTION  (the game loader is written against this)
+=====================================================================================
+ All grids are N x N (N = 512 / 1024 / 2048, written to map.json), row-major,
+ row 0 = TOP row of the editor view.
+
+ COORDINATES
+   - The map covers the square [0, worldSizeMeters] x [0, worldSizeMeters].
+   - Pixel (px, py): px = column (0 = left), py = row (0 = top). ORIGIN = TOP-LEFT
+     corner of the image = world (x=0, z=0).
+   - World +X = increasing px (to the right / "east").
+   - World +Z = increasing py (DOWN the image / "south").   (world z = py/N * worldSize)
+   - World +Y = up; y metres = normalized height * maxHeightMeters.
+   - Pixel (i,j) covers world x in [i*cell,(i+1)*cell], z in [j*cell,(j+1)*cell] with
+     cell = worldSizeMeters / N; its sample point is the pixel CENTRE (i+0.5, j+0.5)*cell.
+     Normalized map coordinates u,v in 0..1 are edge-to-edge: x = u*worldSize, z = v*worldSize,
+     continuous pixel position = u*N (so u=(i+0.5)/N is the centre of pixel i).
+     Sample height bilinearly at continuous pixel pos (u*N-0.5, v*N-0.5).
+     (If you build an N x N vertex grid spanning the world, resample/scale accordingly.)
+
+ FILES  (all written by Export into one folder)
+   heightmap16.png   16-bit grayscale PNG, N x N. Sample v (0..65535, big-endian per PNG spec)
+                     -> normalized height = v/65535 -> metres = v/65535 * maxHeightMeters.
+   heightmap.r16     Raw 16-bit UNSIGNED LITTLE-ENDIAN, N*N samples, row-major, same values.
+   splat0.png        8-bit RGBA PNG: R,G,B,A = weight of classes 0,1,2,3 (grass,forest,dirt,sand).
+   splat1.png        8-bit RGBA PNG: R,G,B,A = weight of classes 4,5,6,7 (rock,snow,road,city).
+                     Weights are stored raw (straight, NOT premultiplied alpha). Per pixel, the 8
+                     channels of splat0+splat1 sum to exactly 255. Weight/255 = coverage 0..1.
+   biome_color.png   8-bit RGB PNG, colour of the dominant class per pixel (human preview only).
+   water.png         16-bit grayscale PNG, N x N. Lake/river water surface height:
+                       value 0            -> no lake/river water at this pixel
+                       value v in 1..65535-> water surface normalized = (v-1)/65534,
+                                             metres = (v-1)/65534 * maxHeightMeters
+                     A pixel only counts as water where surface > terrain height (otherwise exported 0).
+                     water mask = (value != 0). OCEAN IS NOT IN THIS FILE: ocean = every pixel whose
+                     terrain height < seaLevel (see map.json seaLevel / seaLevelMeters), surface at seaLevel.
+   roads.json        { roads: [ { id, widthMeters, points: [ { nx, nz, x, y, z, bridge } ] } ] }
+                     nx,nz = normalized 0..1 (edge-to-edge, see above); x,z = world metres
+                     (x = nx*worldSize, z = nz*worldSize); y = terrain height in metres sampled there.
+                     bridge=true on a point means the segment from that point to the NEXT point is
+                     elevated (bridge). Path curve = uniform Catmull-Rom spline through the points
+                     (end points duplicated as phantom neighbours), evaluated in the x,z plane.
+   map.json          N, worldSizeMeters, maxHeightMeters, cellSizeMeters, seaLevel (normalized),
+                     seaLevelMeters, class list {id,name,color}, file names, encodings, coordinate text.
+
+ PROJECT FILE  .tmap :  bytes 0-3 "TMAP", bytes 4-7 uint32 LE headerLength, then headerLength bytes of
+   UTF-8 JSON header (settings, roads, N, layers[{name,type,offset,byteLength}]), then raw typed arrays
+   (little-endian). Layer offsets are relative to the start of the data section (= 8 + headerLength).
+   Layers: height f32, water f32 (-1 = none), weight0..weight7 u8.
+=====================================================================================
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#16181c;--panel:#1e2127;--panel2:#262a32;--line:#343944;--fg:#d6dae2;--dim:#8b93a3;--acc:#4da3ff;--accbg:#1f3a57}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:12px/1.35 system-ui,Segoe UI,sans-serif;overflow:hidden}
+body{display:grid;grid-template-rows:34px 1fr 24px;grid-template-columns:100%}
+#top{display:flex;gap:6px;align-items:center;padding:0 8px;background:var(--panel);border-bottom:1px solid var(--line)}
+#top b{margin-right:8px;color:var(--acc)}
+#top .sp{flex:1}
+#main{display:grid;grid-template-columns:64px 1fr 250px;min-height:0}
+#left{background:var(--panel);border-right:1px solid var(--line);padding:4px;display:flex;flex-direction:column;gap:3px;overflow:auto}
+#right{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:4px 8px 20px}
+#wrap{position:relative;min-width:0;min-height:0;overflow:hidden}
+#gv{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+#cv{position:absolute;left:0;top:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+#status{background:var(--panel);border-top:1px solid var(--line);padding:3px 10px;color:var(--dim);white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:var(--fg)}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:3px 9px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.on{background:var(--accbg);border-color:var(--acc)}
+#left button{padding:5px 2px;text-align:center;font-size:11px;line-height:1.15}
+#left button kbd{display:block;color:var(--dim);font-size:9px}
+select,input[type=number],input[type=text]{background:var(--panel2);border:1px solid var(--line);border-radius:3px;padding:2px 4px}
+input[type=number]{width:70px}
+h4{margin:10px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:2px}
+.row{display:flex;align-items:center;gap:6px;margin:3px 0}
+.row label{width:84px;color:var(--dim);flex:none}
+.row input[type=range]{flex:1;min-width:0}
+.row .v{width:38px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
+.sw{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:4px 0}
+.sw div{height:34px;border:2px solid transparent;border-radius:4px;font-size:10px;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;display:flex;align-items:flex-end;justify-content:center;cursor:pointer}
+.sw div.on{border-color:#fff}
+#roadlist{max-height:110px;overflow:auto;border:1px solid var(--line);border-radius:3px;margin:4px 0}
+#roadlist div{padding:2px 6px;cursor:pointer}
+#roadlist div.on{background:var(--accbg)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:10}
+.overlay[hidden]{display:none}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 18px;max-width:560px;max-height:90vh;overflow:auto}
+.box h3{margin:0 0 8px}
+.box table td{padding:1px 10px 1px 0}
+kbd{background:var(--panel2);border:1px solid var(--line);border-radius:3px;padding:0 4px}
+#toast{position:fixed;bottom:34px;left:50%;transform:translateX(-50%);background:#000c;padding:6px 12px;border-radius:4px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.small{color:var(--dim);font-size:11px}
+</style>
+</head>
+<body>
+<div id="top">
+  <b>Terrain Editor</b>
+  <button id="bNew">New</button><button id="bOpen">Open</button><button id="bSave">Save</button><button id="bExport">Export</button>
+  <button id="bUndo">Undo</button><button id="bRedo">Redo</button>
+  <span class="sp"></span>
+  <span id="saveInfo" class="small"></span>
+  <button id="bHelp">Help (F1)</button>
+</div>
+<div id="main">
+  <div id="left"></div>
+  <div id="wrap"><canvas id="cv"></canvas><canvas id="gv"></canvas></div>
+  <div id="right"></div>
+</div>
+<div id="status"></div>
+<div id="toast"></div>
+<input type="file" id="fileIn" accept=".tmap" hidden>
+
+<div class="overlay" id="newDlg" hidden><div class="box">
+  <h3>New map</h3>
+  <div class="row"><label>Resolution</label><select id="nN"><option>512</option><option selected>1024</option><option>2048</option></select></div>
+  <div class="row"><label>World size (m)</label><input type="number" id="nW" value="2000" min="100" step="100"></div>
+  <div class="row"><label>Max height (m)</label><input type="number" id="nH" value="200" min="10" step="10"></div>
+  <div class="row"><label>Sea level (0-1)</label><input type="number" id="nS" value="0.1" min="0" max="1" step="0.01"></div>
+  <div class="row"><label>Start height</label><input type="number" id="nB" value="0.2" min="0" max="1" step="0.01"></div>
+  <div class="row"><span class="sp"></span><button id="nCancel">Cancel</button><button id="nOk" class="on">Create</button></div>
+</div></div>
+
+<div class="overlay" id="helpDlg" hidden><div class="box">
+  <h3>Shortcuts</h3>
+  <table>
+    <tr><td><kbd>R</kbd> Raise (Shift = lower)</td><td><kbd>L</kbd> Lower</td></tr>
+    <tr><td><kbd>S</kbd> Smooth</td><td><kbd>F</kbd> Flatten (Alt+click = sample height)</td></tr>
+    <tr><td><kbd>M</kbd> Mountain</td><td><kbd>H</kbd> Hills</td></tr>
+    <tr><td><kbd>W</kbd> Water</td><td><kbd>E</kbd> Erase water</td></tr>
+    <tr><td><kbd>P</kbd> Paint surface</td><td><kbd>T</kbd> Road tool</td></tr>
+    <tr><td><kbd>V</kbd> Pan tool</td><td><kbd>G</kbd> Toggle grid</td></tr>
+    <tr><td><kbd>[</kbd> <kbd>]</kbd> Brush radius</td><td><kbd>{</kbd> <kbd>}</kbd> Brush hardness</td></tr>
+    <tr><td>Space+drag / middle mouse: pan</td><td>Wheel: zoom to cursor</td></tr>
+    <tr><td><kbd>Ctrl+Z</kbd> Undo</td><td><kbd>Ctrl+Y</kbd> / <kbd>Ctrl+Shift+Z</kbd> Redo</td></tr>
+    <tr><td><kbd>Ctrl+S</kbd> Save .tmap</td><td><kbd>F1</kbd> / <kbd>?</kbd> This help</td></tr>
+  </table>
+  <h3 style="margin-top:10px">Road tool</h3>
+  <div class="small">Click: add waypoint (starts a new road if none is being drawn). Drag point: move. Click on a line: insert point.
+  Delete: remove selected point. Enter / double-click: finish road. Pick roads in the list; "Continue" appends to the selected road.
+  Per-point Bridge checkbox: the segment from that point to the next is a bridge (dashed, not baked).</div>
+  <h3 style="margin-top:10px">Hints</h3>
+  <div class="small">Hardness 1 = hard cliff/plateau edges, hardness 0 = soft rolling hills. Holding the mouse still keeps applying the brush.
+  Flatten samples height at stroke start unless a typed target is enabled. Water tool: click on the terrain height you want
+  as lake level, drag to carve a lake there. Autosave to the browser runs ~10 s after changes.</div>
+  <div class="row" style="margin-top:10px"><span class="sp"></span><button id="helpClose" class="on">Close</button></div>
+</div></div>
+
+<script>
+'use strict';
+// =====================================================================================
+// SECTION 1: constants, state
+// =====================================================================================
+const CLASSES = [
+  {id:0,name:'grass',color:'#5da130'},{id:1,name:'forest',color:'#1f5c2a'},{id:2,name:'dirt',color:'#8a6a43'},
+  {id:3,name:'sand',color:'#e0cf8f'},{id:4,name:'rock',color:'#7d7d7d'},{id:5,name:'snow',color:'#f2f6ff'},
+  {id:6,name:'road',color:'#333333'},{id:7,name:'city',color:'#b0a0c0'}];
+const CR = new Float32Array(8), CG = new Float32Array(8), CB = new Float32Array(8);
+CLASSES.forEach((c,i)=>{const v=parseInt(c.color.slice(1),16);CR[i]=v>>16;CG[i]=(v>>8)&255;CB[i]=v&255;});
+const TS = 64, MAXUNDO = 40;
+
+let N = 1024;
+const S = {world:2000, maxH:200, sea:0.1};
+let H, WL, WC, scratchH, strokeA;             // height f32, waterLevel f32 (-1 none), weights[8] u8
+let roads = [], nextRoadId = 1;
+let mapCv, mctx, img, img32;
+const brush = {radius:60, strength:0.5, hardness:0.5, shape:0};   // shape 0 smooth 1 linear 2 sharp
+const opts = {flatTyped:false, flatMeters:50, mtScale:150, mtSharp:2, mtAmp:1, hlScale:250, hlAmp:1,
+  waterDepth:6, flatPicked:null, cls:0, slope:35, snow:0.75, sand:0.03, shoulder:10, smoothM:40};
+const view = {mode:'both', water:true, roads:true, grid:false, biomeOp:0.4, waterOp:0.7, z:1, ox:0, oy:0};
+let tool = 'raise';
+let modified = false, lastSaveTs = 0;
+
+const $ = id => document.getElementById(id);
+function clamp(v,a,b){return v<a?a:v>b?b:v;}
+function toast(m){const t=$('toast');t.textContent=m;t.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.opacity=0,2500);}
+
+function allocate(n){
+  N = n;
+  H = new Float32Array(n*n); WL = new Float32Array(n*n).fill(-1);
+  WC = []; for(let c=0;c<8;c++) WC.push(new Uint8Array(n*n)); WC[0].fill(255);
+  scratchH = new Float32Array(n*n); strokeA = new Float32Array(n*n);
+  mapCv = document.createElement('canvas'); mapCv.width = mapCv.height = n;
+  mctx = mapCv.getContext('2d');
+  img = mctx.createImageData(n,n); img32 = new Uint32Array(img.data.buffer);
+  undoStack.length = 0; redoStack.length = 0; stroke = null;
+  roads = []; nextRoadId = 1; selRoad = -1; selPt = -1; drawing = false;
+}
+
+// =====================================================================================
+// SECTION 2: noise (Perlin) for Mountain / Hills
+// =====================================================================================
+const perm = new Uint8Array(512);
+(function(){const p=[];for(let i=0;i<256;i++)p.push(i);let s=1234567;
+  for(let i=255;i>0;i--){s=(s*1664525+1013904223)>>>0;const j=s%(i+1);[p[i],p[j]]=[p[j],p[i]];}
+  for(let i=0;i<512;i++)perm[i]=p[i&255];})();
+function g(h,a,b){switch(h&7){case 0:return a+b;case 1:return a-b;case 2:return -a+b;case 3:return -a-b;
+    case 4:return a;case 5:return -a;case 6:return b;default:return -b;}}
+function noise2(x,y){            // approx [-1,1]
+  const X=Math.floor(x),Y=Math.floor(y);x-=X;y-=Y;
+  const xi=X&255,yi=Y&255,u=x*x*x*(x*(x*6-15)+10),v=y*y*y*(y*(y*6-15)+10);
+  const aa=perm[perm[xi]+yi],ab=perm[perm[xi]+yi+1],ba=perm[perm[xi+1]+yi],bb=perm[perm[xi+1]+yi+1];
+  const x1=g(aa,x,y)+(g(ba,x-1,y)-g(aa,x,y))*u, x2=g(ab,x,y-1)+(g(bb,x-1,y-1)-g(ab,x,y-1))*u;
+  return (x1+(x2-x1)*v)*0.9;
+}
+function fbm(x,y,oct){let s=0,a=1,n=0;for(let o=0;o<oct;o++){s+=a*noise2(x,y);n+=a;a*=0.5;x*=2;y*=2;}return s/n;}
+function ridged(x,y,oct,sharp){      // ridged multifractal, ~[0,1]
+  let sum=0,amp=1,norm=0,w=1;
+  for(let o=0;o<oct;o++){
+    let sg=1-Math.abs(noise2(x,y)); sg=Math.pow(sg<0?0:sg,sharp); sg*=w;
+    w=clamp(sg*1.6,0,1); sum+=sg*amp; norm+=amp; amp*=0.5; x*=2.03; y*=2.03;
+  }
+  return sum/norm;
+}
+
+// =====================================================================================
+// SECTION 3: undo / redo (dirty tile patches, only changed layers)
+// =====================================================================================
+const undoStack = [], redoStack = [];
+let stroke = null;        // {layers:'hwc', tiles:Map}
+const tilesPerRow = () => N/TS;
+function readTile(layer,tx,ty){
+  const x0=tx*TS,y0=ty*TS;
+  if(layer==='c'){const o=new Uint8Array(8*TS*TS);
+    for(let c=0;c<8;c++)for(let r=0;r<TS;r++)o.set(WC[c].subarray((y0+r)*N+x0,(y0+r)*N+x0+TS),(c*TS+r)*TS);return o;}
+  const src = layer==='h'?H:WL, o=new Float32Array(TS*TS);
+  for(let r=0;r<TS;r++)o.set(src.subarray((y0+r)*N+x0,(y0+r)*N+x0+TS),r*TS);
+  return o;
+}
+function writeTile(layer,tx,ty,d){
+  const x0=tx*TS,y0=ty*TS;
+  if(layer==='c'){for(let c=0;c<8;c++)for(let r=0;r<TS;r++)WC[c].set(d.subarray((c*TS+r)*TS,(c*TS+r+1)*TS),(y0+r)*N+x0);return;}
+  const dst = layer==='h'?H:WL;
+  for(let r=0;r<TS;r++)dst.set(d.subarray(r*TS,(r+1)*TS),(y0+r)*N+x0);
+}
+function beginStroke(layers){stroke={layers,tiles:new Map(),roadsBefore:null};}
+function touch(x0,y0,x1,y1){            // inclusive pixel rect; saves "before" state of tiles first time touched
+  if(!stroke)return;
+  x0=clamp(x0,0,N-1);y0=clamp(y0,0,N-1);x1=clamp(x1,0,N-1);y1=clamp(y1,0,N-1);
+  const tpr=tilesPerRow();
+  for(let ty=(y0/TS)|0;ty<=((y1/TS)|0);ty++)for(let tx=(x0/TS)|0;tx<=((x1/TS)|0);tx++){
+    const k=ty*tpr+tx; if(stroke.tiles.has(k))continue;
+    const t={tx,ty,b:{},a:{}};
+    for(const l of stroke.layers)t.b[l]=readTile(l,tx,ty);
+    if(stroke.layers.includes('h')){const sx=tx*TS,sy=ty*TS;
+      for(let r=0;r<TS;r++){scratchH.set(H.subarray((sy+r)*N+sx,(sy+r)*N+sx+TS),(sy+r)*N+sx);strokeA.fill(0,(sy+r)*N+sx,(sy+r)*N+sx+TS);}}
+    stroke.tiles.set(k,t);
+  }
+}
+function pushHistory(e){undoStack.push(e);if(undoStack.length>MAXUNDO)undoStack.shift();redoStack.length=0;setModified();}
+function endStroke(){
+  if(!stroke)return; const s=stroke; stroke=null;
+  if(!s.tiles.size)return;
+  for(const t of s.tiles.values())for(const l of s.layers)t.a[l]=readTile(l,t.tx,t.ty);
+  pushHistory({tiles:[...s.tiles.values()]});
+}
+function applyEntry(e,after){
+  for(const t of e.tiles){const d=after?t.a:t.b;for(const l in d)writeTile(l,t.tx,t.ty,d[l]);
+    markDirty(t.tx*TS,t.ty*TS,t.tx*TS+TS,t.ty*TS+TS);}
+  if(e.roads){roads=JSON.parse(after?e.roads.a:e.roads.b);selRoad=Math.min(selRoad,roads.length-1);selPt=-1;drawing=false;refreshRoadUI();}
+  setModified();
+}
+function undo(){endStroke();const e=undoStack.pop();if(!e){toast('Nothing to undo');return;}applyEntry(e,false);redoStack.push(e);}
+function redo(){const e=redoStack.pop();if(!e){toast('Nothing to redo');return;}applyEntry(e,true);undoStack.push(e);}
+function setModified(){modified=true;needDraw=true;}
+
+// =====================================================================================
+// SECTION 4: rendering (incremental, dirty rect)
+// =====================================================================================
+let dirty = null, needDraw = true;
+function markDirty(x0,y0,x1,y1){            // x1,y1 exclusive
+  x0=Math.max(0,x0);y0=Math.max(0,y0);x1=Math.min(N,x1);y1=Math.min(N,y1);
+  if(!dirty)dirty={x0,y0,x1,y1};else{dirty.x0=Math.min(dirty.x0,x0);dirty.y0=Math.min(dirty.y0,y0);dirty.x1=Math.max(dirty.x1,x1);dirty.y1=Math.max(dirty.y1,y1);}
+  needDraw=true;
+}
+const RAMP = (()=>{const st=[[0,[56,98,70]],[.12,[80,128,70]],[.3,[138,160,84]],[.5,[170,150,100]],[.72,[140,122,108]],[.9,[200,196,194]],[1,[255,255,255]]];
+  const r=new Float32Array(256),g=new Float32Array(256),b=new Float32Array(256);
+  for(let i=0;i<256;i++){const t=i/255;let k=0;while(k<st.length-2&&t>st[k+1][0])k++;
+    const a=st[k],c=st[k+1],f=clamp((t-a[0])/(c[0]-a[0]),0,1);
+    r[i]=a[1][0]+(c[1][0]-a[1][0])*f;g[i]=a[1][1]+(c[1][1]-a[1][1])*f;b[i]=a[1][2]+(c[1][2]-a[1][2])*f;}
+  return {r,g,b};})();
+const LIGHT = (()=>{const x=-0.5,y=0.75,z=-0.45,l=Math.hypot(x,y,z);return [x/l,y/l,z/l];})();
+
+function renderRegion(rx0,ry0,rx1,ry1){
+  const mix = view.mode==='height'?0:view.mode==='biome'?1:view.biomeOp;
+  const sc = S.maxH/(S.world/N)*1.5*0.5;
+  const sea=S.sea, wop=view.waterOp, showW=view.water;
+  const [LX,LY,LZ]=LIGHT;
+  for(let y=ry0;y<ry1;y++){
+    const yu=y>0?-N:0, yd=y<N-1?N:0;
+    for(let x=rx0;x<rx1;x++){
+      const i=y*N+x, h=H[i];
+      const ri=(h*255+0.5)|0;
+      let r=RAMP.r[ri],g=RAMP.g[ri],b=RAMP.b[ri];
+      if(mix>0){
+        let br=0,bg=0,bb=0;
+        for(let c=0;c<8;c++){const w=WC[c][i];if(w){br+=w*CR[c];bg+=w*CG[c];bb+=w*CB[c];}}
+        br/=255;bg/=255;bb/=255;
+        r+=(br-r)*mix;g+=(bg-g)*mix;b+=(bb-b)*mix;
+      }
+      const dx=(H[i+(x<N-1?1:0)]-H[i-(x>0?1:0)])*sc, dz=(H[i+yd]-H[i+yu])*sc;
+      let m=1+((-dx*LX+LY-dz*LZ)/Math.sqrt(dx*dx+dz*dz+1)-LY)*2.2;
+      m=m<0.3?0.3:m>1.7?1.7:m; r*=m;g*=m;b*=m;
+      if(showW){
+        let depth=-1; if(h<sea)depth=sea-h;
+        const lv=WL[i]; if(lv>=0&&lv>h&&lv-h>depth)depth=lv-h;
+        if(depth>=0){
+          const t=depth*10>1?1:depth*10, a=wop*(0.5+0.45*t);
+          const wr=70-50*t, wg=140-90*t, wb=210-90*t;
+          r+=(wr-r)*a;g+=(wg-g)*a;b+=(wb-b)*a;
+        }
+      }
+      r=r>255?255:r;g=g>255?255:g;b=b>255?255:b;
+      img32[i]=0xFF000000|((b|0)<<16)|((g|0)<<8)|(r|0);
+    }
+  }
+}
+function flushRender(){
+  if(!dirty)return;
+  const x0=Math.max(0,dirty.x0-1),y0=Math.max(0,dirty.y0-1),x1=Math.min(N,dirty.x1+1),y1=Math.min(N,dirty.y1+1);
+  dirty=null;
+  renderRegion(x0,y0,x1,y1);
+  mctx.putImageData(img,0,0,x0,y0,x1-x0,y1-y0);
+}
+function fullRender(){markDirty(0,0,N,N);}
+
+
+// =====================================================================================
+// SECTION 4b: adaptive grid overlay (separate canvas #gv; redrawn only when view/hover/grid state changes)
+// =====================================================================================
+// Metric grid: decades 1 m, 10 m, 100 m, ... shown when on-screen spacing >= ~10 px (fade 6..14 px).
+// Quadrant overlay (quadtree): shown when the whole map fits in view OR the coarsest decade gives < minLinesAcross lines
+// across the map. Tweak the QUAD constants to change the behaviour.
+const QUAD = {maxDepth:3, minCellPx:150, hidePx:1500, minLinesAcross:4, color:'108,200,255'};
+const GRID = {minPx:10, fadePx:4, maxDecade:5, maxLines:1500, labelPx:60};
+const gv = $('gv'), gctx = gv.getContext('2d');
+let gridInfo = '', gridSig = [];
+function fmtM(m){return m>=1000?(+(m/1000).toFixed(3))+' km':(+m.toFixed(2))+' m';}
+function gridDirty(){
+  const sig=[view.ox,view.oy,view.z,hover?hover.sx:-1,hover?hover.sy:-1,view.grid,S.world,N,gv.width,gv.height];
+  for(let i=0;i<sig.length;i++)if(sig[i]!==gridSig[i]){gridSig=sig;return true;}
+  return false;
+}
+function haloText(t,x,y){gctx.lineWidth=3;gctx.strokeStyle='rgba(0,0,0,.75)';gctx.strokeText(t,x,y);gctx.fillStyle='#fff';gctx.fillText(t,x,y);}
+function drawGrid(){
+  const w=gv.width,h=gv.height;
+  gctx.setTransform(1,0,0,1,0,0);gctx.clearRect(0,0,w,h);gctx.setLineDash([]);
+  gridInfo='';
+  if(!view.grid){updateStatus();return;}
+  const z=view.z, ppm=z/(S.world/N), size=N*z, x0=view.ox,y0=view.oy,x1=x0+size,y1=y0+size;
+  const vx0=Math.max(0,x0),vx1=Math.min(w,x1),vy0=Math.max(0,y0),vy1=Math.min(h,y1);
+  if(vx1<=vx0||vy1<=vy0){gridInfo='Grid (map off-screen)';updateStatus();return;}
+  let budget=GRID.maxLines, finest=-1, labelK=-1;
+  const lv=[];
+  for(let k=0;k<=GRID.maxDecade;k++){
+    const sp=10**k*ppm; if(sp>=GRID.minPx&&finest<0)finest=k; if(sp>=GRID.labelPx&&labelK<0)labelK=k;
+    const t=clamp((sp-(GRID.minPx-GRID.fadePx))/(2*GRID.fadePx),0,1), a=t*t*(3-2*t);
+    if(a>0)lv.push({k,sp,a});
+  }
+  gctx.lineCap='butt';
+  for(const L of lv){
+    const step=10**L.k, mx0=Math.ceil((vx0-x0)/ppm/step), mx1=Math.min(Math.floor(S.world/step),Math.floor((vx1-x0)/ppm/step));
+    const my0=Math.ceil((vy0-y0)/ppm/step), my1=Math.min(Math.floor(S.world/step),Math.floor((vy1-y0)/ppm/step));
+    const cnt=Math.max(0,mx1-mx0+1)+Math.max(0,my1-my0+1); if(cnt>budget)continue; budget-=cnt;
+    const minor=new Path2D(), major=new Path2D();
+    for(let i=mx0;i<=mx1;i++){const sx=Math.round(x0+i*step*ppm)+.5,p=i%10===0?major:minor;p.moveTo(sx,vy0);p.lineTo(sx,vy1);}
+    for(let i=my0;i<=my1;i++){const sy=Math.round(y0+i*step*ppm)+.5,p=i%10===0?major:minor;p.moveTo(vx0,sy);p.lineTo(vx1,sy);}
+    gctx.lineWidth=1;gctx.strokeStyle='rgba(255,255,255,'+(0.16*L.a)+')';gctx.stroke(minor);
+    gctx.lineWidth=1.5;gctx.strokeStyle='rgba(255,235,170,'+(0.45*L.a)+')';gctx.stroke(major);
+  }
+  if(finest>=0)gridInfo='Grid '+fmtM(10**finest);
+  // metre labels along the viewport edges
+  if(labelK>=0&&budget>0){
+    const step=10**labelK,L=lv.find(q=>q.k===labelK), a=L?L.a:1;
+    gctx.font='10px system-ui,sans-serif';gctx.globalAlpha=Math.min(1,a);gctx.textBaseline='top';gctx.textAlign='left';
+    let n=0;
+    for(let i=Math.ceil((vx0-x0)/ppm/step);i<=Math.floor(Math.min(S.world,(vx1-x0)/ppm)/step)&&n<60;i++,n++){
+      const sx=Math.round(x0+i*step*ppm); haloText(fmtM(i*step),sx+3,2);}
+    for(let i=Math.ceil((vy0-y0)/ppm/step);i<=Math.floor(Math.min(S.world,(vy1-y0)/ppm)/step)&&n<120;i++,n++){
+      const sy=Math.round(y0+i*step*ppm); haloText(fmtM(i*step),3,sy+2);}
+    gctx.globalAlpha=1;
+  }
+  // quadrant overlay
+  let kc=0;while(10**(kc+1)<=S.world)kc++;
+  const fits=x0>=0&&y0>=0&&x1<=w&&y1<=h;
+  if(fits||Math.floor(S.world/10**kc)<QUAD.minLinesAcross){
+    let D=1;while(D<QUAD.maxDepth&&size/2**(D+1)>=QUAD.minCellPx)D++;
+    if(size/2**D<=QUAD.hidePx){
+      const col=QUAD.color;
+      for(let l=1;l<=D;l++){
+        const p=new Path2D(),n=2**l;
+        for(let j=1;j<n;j+=2){const sx=Math.round(x0+size*j/n)+.5,sy=Math.round(y0+size*j/n)+.5;
+          if(sx>=vx0&&sx<=vx1){p.moveTo(sx,vy0);p.lineTo(sx,vy1);} if(sy>=vy0&&sy<=vy1){p.moveTo(vx0,sy);p.lineTo(vx1,sy);}}
+        gctx.lineWidth=l===1?2:1.25;gctx.strokeStyle='rgba('+col+','+(0.8-0.18*(l-1))+')';gctx.stroke(p);
+      }
+      gridInfo+=(gridInfo?' | ':'')+'Quadrants '+2**D+'x'+2**D;
+      if(hover){
+        const [mx,my]=toMapPt(hover.sx,hover.sy), n=2**D;
+        if(mx>=0&&my>=0&&mx<N&&my<N){
+          const cx=Math.floor(mx/N*n),cy=Math.floor(my/N*n),cw=size/n,rx=x0+cx*cw,ry=y0+cy*cw;
+          gctx.fillStyle='rgba('+col+',0.16)';gctx.fillRect(rx,ry,cw,cw);
+          gctx.lineWidth=2;gctx.strokeStyle='rgba('+col+',1)';gctx.strokeRect(rx+1,ry+1,cw-2,cw-2);
+          let name=[];for(let l=1;l<=D;l++){const bx=(cx>>(D-l))&1,by=(cy>>(D-l))&1;name.push((by?'S':'N')+(bx?'E':'W'));}
+          const cm=S.world/n, t1=name.join(' > ')+'   ('+fmtM(cm)+' square)',
+            t2='x '+fmtM(cx*cm)+' - '+fmtM((cx+1)*cm)+'    z '+fmtM(cy*cm)+' - '+fmtM((cy+1)*cm);
+          gctx.font='12px system-ui,sans-serif';gctx.textBaseline='top';
+          const bw=Math.max(gctx.measureText(t1).width,gctx.measureText(t2).width)+14,bh=38;
+          const bx=clamp(rx+8,6,Math.max(6,w-bw-6)),by=clamp(ry+8,6,Math.max(6,h-bh-6));
+          gctx.fillStyle='rgba(0,0,0,.72)';gctx.fillRect(bx,by,bw,bh);
+          gctx.strokeStyle='rgba('+col+',.9)';gctx.lineWidth=1;gctx.strokeRect(bx+.5,by+.5,bw-1,bh-1);
+          gctx.fillStyle='#fff';gctx.fillText(t1,bx+7,by+4);gctx.fillStyle='#bfe6ff';gctx.fillText(t2,bx+7,by+21);
+        }
+      }
+    }
+  }
+  updateStatus();
+}
+
+// ---- canvas draw (view transform, overlays) ----
+const cv = $('cv'), ctx = cv.getContext('2d');
+let hover = null;       // {sx,sy,mx,my}
+function toMapPt(sx,sy){return [(sx-view.ox)/view.z,(sy-view.oy)/view.z];}
+function fitView(){
+  const w=cv.width,h=cv.height; view.z=Math.min(w,h)/N*0.95; view.ox=(w-N*view.z)/2; view.oy=(h-N*view.z)/2; needDraw=true;
+}
+function draw(){
+  const w=cv.width,h=cv.height,z=view.z;
+  ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle='#0e0f12'; ctx.fillRect(0,0,w,h);
+  ctx.imageSmoothingEnabled = z<1;
+  const sx0=Math.max(0,Math.floor(-view.ox/z)),sy0=Math.max(0,Math.floor(-view.oy/z));
+  const sx1=Math.min(N,Math.ceil((w-view.ox)/z)),sy1=Math.min(N,Math.ceil((h-view.oy)/z));
+  if(sx1>sx0&&sy1>sy0)ctx.drawImage(mapCv,sx0,sy0,sx1-sx0,sy1-sy0,view.ox+sx0*z,view.oy+sy0*z,(sx1-sx0)*z,(sy1-sy0)*z);
+  ctx.strokeStyle='#555';ctx.lineWidth=1;ctx.strokeRect(view.ox-.5,view.oy-.5,N*z+1,N*z+1);
+  if(view.roads||tool==='road')drawRoads();
+  drawCursor();
+}
+// (grid is drawn by drawGrid() in SECTION 4b on the separate overlay canvas #gv)
+function drawRoads(){
+  const z=view.z, cell=S.world/N;
+  roads.forEach((rd,ri)=>{
+    if(rd.points.length<1)return;
+    const sel = ri===selRoad, sm = sampleRoad(rd,Math.max(1,4/z));
+    const wpx=Math.max(2,rd.width/cell*z);
+    const pS=new Path2D(), pB=new Path2D(); let cur=null;
+    for(let j=0;j<sm.x.length-1;j++){
+      const br=!!rd.points[sm.seg[j]].bridge, p=br?pB:pS;
+      if(cur!==br){p.moveTo(view.ox+sm.x[j]*z,view.oy+sm.z[j]*z);cur=br;}
+      p.lineTo(view.ox+sm.x[j+1]*z,view.oy+sm.z[j+1]*z);
+    }
+    ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.setLineDash([]);ctx.lineWidth=wpx;ctx.strokeStyle=sel?'rgba(255,220,80,.35)':'rgba(255,255,255,.22)';ctx.stroke(pS);
+    ctx.lineWidth=sel?2:1.5;ctx.strokeStyle=sel?'#ffd84a':'#e8e8e8';ctx.stroke(pS);
+    ctx.setLineDash([8,6]);ctx.lineWidth=sel?3:2;ctx.strokeStyle='#ff7a3c';ctx.stroke(pB);ctx.setLineDash([]);
+    if(sel||tool==='road'){
+      rd.points.forEach((p,pi)=>{
+        ctx.beginPath();ctx.arc(view.ox+p.x*N*z,view.oy+p.z*N*z,pi===selPt&&sel?6:4,0,6.3);
+        ctx.fillStyle=pi===selPt&&sel?'#fff':p.bridge?'#ff7a3c':sel?'#ffd84a':'#bbb';ctx.fill();ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.stroke();});
+    }
+  });
+}
+function isBrushTool(t){return t!=='road'&&t!=='pan';}
+function drawCursor(){
+  if(!hover||!isBrushTool(tool)||spaceDown)return;
+  const r=brush.radius*view.z;
+  ctx.setLineDash([]);ctx.lineWidth=1.5;ctx.strokeStyle='rgba(255,255,255,.9)';
+  ctx.beginPath();ctx.arc(hover.sx,hover.sy,r,0,6.3);ctx.stroke();
+  ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(255,255,255,.6)';
+  ctx.beginPath();ctx.arc(hover.sx,hover.sy,Math.max(1,r*brush.hardness),0,6.3);ctx.stroke();ctx.setLineDash([]);
+}
+
+// =====================================================================================
+// SECTION 5: sampling helpers
+// =====================================================================================
+function heightAt(mx,my){            // continuous pixel coords -> normalized height (bilinear, pixel centres)
+  const fx=mx-0.5,fy=my-0.5; let x0=Math.floor(fx),y0=Math.floor(fy);const tx=fx-x0,ty=fy-y0;
+  const x1=clamp(x0+1,0,N-1),y1=clamp(y0+1,0,N-1);x0=clamp(x0,0,N-1);y0=clamp(y0,0,N-1);
+  const a=H[y0*N+x0]+(H[y0*N+x1]-H[y0*N+x0])*tx, b=H[y1*N+x0]+(H[y1*N+x1]-H[y1*N+x0])*tx;
+  return a+(b-a)*ty;
+}
+
+// =====================================================================================
+// SECTION 6: brush tools
+// =====================================================================================
+function falloff(t){
+  const h=brush.hardness; if(t<=h)return 1; if(h>=0.999)return 1;
+  const u=(t-h)/(1-h);
+  if(brush.shape===1)return 1-u;
+  if(brush.shape===2)return Math.pow(1-u,0.3);
+  return 1-u*u*(3-2*u);
+}
+function forBrush(cx,cy,fn){
+  const r=brush.radius;
+  const x0=Math.max(0,Math.floor(cx-r)),x1=Math.min(N-1,Math.ceil(cx+r)),y0=Math.max(0,Math.floor(cy-r)),y1=Math.min(N-1,Math.ceil(cy+r));
+  if(x1<x0||y1<y0)return;
+  touch(x0,y0,x1,y1);
+  const r2=r*r;
+  for(let y=y0;y<=y1;y++){const dy=y+0.5-cy;
+    for(let x=x0;x<=x1;x++){const dx=x+0.5-cx,d2=dx*dx+dy*dy;if(d2>=r2)continue;
+      fn(y*N+x,falloff(Math.sqrt(d2)/r),x,y);}}
+  markDirty(x0,y0,x1+1,y1+1);
+}
+const rm = new Int16Array(8);
+function paintPixel(i,c,a){            // add coverage of class c, remove proportionally from others, keep sum 255
+  const wc=WC[c][i]; if(wc===255)return;
+  const rest=255-wc; let d=Math.round(rest*a);
+  if(d<1){if(a<0.02)return;d=1;} if(d>rest)d=rest;
+  let tot=0;
+  for(let k=0;k<8;k++){if(k===c){rm[k]=0;continue;}const v=WC[k][i];let r=v?Math.round(d*v/rest):0;if(r>v)r=v;rm[k]=r;tot+=r;}
+  let diff=d-tot;
+  while(diff>0){let pr=false;for(let k=0;k<8&&diff>0;k++){if(k!==c&&WC[k][i]-rm[k]>0){rm[k]++;diff--;pr=true;}}if(!pr)break;}
+  while(diff<0){for(let k=0;k<8&&diff<0;k++){if(rm[k]>0){rm[k]--;diff++;}}}
+  for(let k=0;k<8;k++)if(rm[k])WC[k][i]-=rm[k];
+  WC[c][i]=wc+d;
+}
+const LAYERS = {raise:'h',lower:'h',smooth:'h',flatten:'h',mountain:'h',hills:'h',water:'hw',erasewater:'w',paint:'c'};
+const AIR = new Set(['raise','lower','smooth','flatten','mountain','hills','paint']);
+let strokeSign=1, flatT=0, waterLv=0, strokeLvl=0, strokeU=0;
+const HOLD = new Set(['raise','lower','mountain','hills']);
+// Per-stroke "union" deposit: A[i] = largest amount applied so far this stroke. A stamp only adds the difference,
+// so hard brushes give clean plateaus/cliffs (no terracing from overlapping stamps) and holding the mouse raises the level.
+function unionAdd(i,target,sg){
+  const d=target-strokeA[i]; if(sg*d<=0)return;
+  strokeA[i]=target; const v=H[i]+d; H[i]=v<0?0:v>1?1:v;
+}
+
+function stamp(cx,cy,p){
+  const k=brush.strength*p;
+  switch(tool){
+    case 'raise': case 'lower': {
+      const sg=(tool==='raise'?1:-1)*strokeSign, L=strokeLvl*sg;
+      forBrush(cx,cy,(i,f)=>unionAdd(i,L*f,sg));break;}
+    case 'flatten': {
+      const a=Math.min(1,k*1.5);
+      forBrush(cx,cy,(i,f)=>{H[i]+=(flatT-H[i])*f*a;});break;}
+    case 'mountain': {
+      const sc=1/opts.mtScale, sh=opts.mtSharp;
+      forBrush(cx,cy,(i,f,x,y)=>unionAdd(i,strokeLvl*f*ridged(x*sc,y*sc,5,sh),1));break;}
+    case 'hills': {
+      const sc=1/opts.hlScale;
+      forBrush(cx,cy,(i,f,x,y)=>unionAdd(i,strokeLvl*f*(fbm(x*sc+31.7,y*sc+17.3,4)*0.5+0.5),1));break;}
+    case 'smooth': {
+      const r=brush.radius,x0=Math.max(0,Math.floor(cx-r)-1),x1=Math.min(N-1,Math.ceil(cx+r)+1),y0=Math.max(0,Math.floor(cy-r)-1),y1=Math.min(N-1,Math.ceil(cy+r)+1);
+      const w=x1-x0+1,h=y1-y0+1,tmp=new Float32Array(w*h);
+      for(let y=0;y<h;y++)tmp.set(H.subarray((y0+y)*N+x0,(y0+y)*N+x0+w),y*w);
+      const a=Math.min(1,k);
+      forBrush(cx,cy,(i,f,x,y)=>{
+        const lx=x-x0,ly=y-y0;let s=0;
+        for(let j=-1;j<=1;j++){const yy=clamp(ly+j,0,h-1)*w;for(let q=-1;q<=1;q++)s+=tmp[yy+clamp(lx+q,0,w-1)];}
+        H[i]+=(s/9-H[i])*f*a;});break;}
+    case 'water': {
+      const dn=opts.waterDepth/S.maxH;
+      forBrush(cx,cy,(i,f)=>{
+        const bed=scratchH[i]-dn*f; if(bed<H[i])H[i]=bed;
+        if(f>0.001&&H[i]<waterLv)WL[i]=waterLv;});break;}
+    case 'erasewater': forBrush(cx,cy,(i,f)=>{if(f>0.01)WL[i]=-1;});break;
+    case 'paint': {
+      const c=opts.cls,a=k*0.5;
+      forBrush(cx,cy,(i,f)=>paintPixel(i,c,f*a));break;}
+  }
+}
+
+// ---- stroke driver (spacing interpolation) ----
+let active=false, lx=0,ly=0,lp=1,acc=0, moved=false;
+function startStroke(e,mx,my){
+  strokeSign=e.shiftKey?-1:1;
+  beginStroke(LAYERS[tool]);
+  const px=clamp(Math.floor(mx),0,N-1),py=clamp(Math.floor(my),0,N-1);
+  if(tool==='flatten')flatT=opts.flatTyped?opts.flatMeters/S.maxH:opts.flatPicked!==null?opts.flatPicked:H[py*N+px];
+  if(tool==='water')waterLv=H[py*N+px]-0.002;
+  strokeU=brush.strength*(tool==='mountain'?opts.mtAmp*0.03:tool==='hills'?opts.hlAmp*0.025:0.02);
+  strokeLvl=strokeU*(tool==='raise'||tool==='lower'?4:8);
+  active=true; acc=0; lp=pressureOf(e); lx=mx;ly=my;
+  stamp(mx,my,lp); moved=true;
+}
+function pressureOf(e){return e.pointerType==='pen'?(e.pressure||0.5):1;}
+function strokeTo(x,y,p){
+  const dx=x-lx,dy=y-ly,d=Math.hypot(dx,dy),sp=Math.max(1,brush.radius*0.2);
+  if(d>0){
+    acc+=d;
+    while(acc>=sp){acc-=sp;const t=1-acc/d;stamp(lx+dx*t,ly+dy*t,lp+(p-lp)*t);}
+  }
+  lx=x;ly=y;lp=p;moved=true;
+}
+function finishStroke(){if(!active)return;active=false;endStroke();}
+
+// =====================================================================================
+// SECTION 7: roads (spline, editing, bake)
+// =====================================================================================
+let selRoad=-1, selPt=-1, drawing=false, dragging=null;
+function sampleRoad(rd,step){            // uniform Catmull-Rom; positions in map px
+  const P=rd.points,n=P.length,out={x:[],z:[],seg:[],t:[]};
+  if(n===0)return out;
+  if(n===1){out.x.push(P[0].x*N);out.z.push(P[0].z*N);out.seg.push(0);out.t.push(0);return out;}
+  for(let i=0;i<n-1;i++){
+    const p0=P[Math.max(i-1,0)],p1=P[i],p2=P[i+1],p3=P[Math.min(i+2,n-1)];
+    const len=Math.hypot(p2.x-p1.x,p2.z-p1.z)*N, m=Math.max(2,Math.ceil(len/step));
+    for(let k=0;k<m;k++){const t=k/m,t2=t*t,t3=t2*t;
+      const cr=(a,b,c,d)=>0.5*(2*b+(-a+c)*t+(2*a-5*b+4*c-d)*t2+(-a+3*b-3*c+d)*t3);
+      out.x.push(cr(p0.x,p1.x,p2.x,p3.x)*N);out.z.push(cr(p0.z,p1.z,p2.z,p3.z)*N);out.seg.push(i);out.t.push(t);}
+  }
+  out.x.push(P[n-1].x*N);out.z.push(P[n-1].z*N);out.seg.push(n-2);out.t.push(1);
+  return out;
+}
+const snap = () => JSON.stringify(roads);
+function commitRoads(before){
+  const after=snap(); if(after===before)return;
+  pushHistory({tiles:[],roads:{b:before,a:after}}); refreshRoadUI();
+}
+function findPoint(mx,my){
+  const tol=9/view.z; let best=null,bd=tol;
+  roads.forEach((rd,ri)=>rd.points.forEach((p,pi)=>{const d=Math.hypot(p.x*N-mx,p.z*N-my)-(ri===selRoad?1:0);if(d<bd){bd=d;best={ri,pi};}}));
+  return best;
+}
+function findSegment(mx,my){
+  const tol=7/view.z; let best=null,bd=tol;
+  roads.forEach((rd,ri)=>{if(rd.points.length<2)return;const sm=sampleRoad(rd,Math.max(1,3/view.z));
+    for(let j=0;j<sm.x.length-1;j++){
+      const ax=sm.x[j],az=sm.z[j],bx=sm.x[j+1]-ax,bz=sm.z[j+1]-az,l2=bx*bx+bz*bz;
+      const t=l2?clamp(((mx-ax)*bx+(my-az)*bz)/l2,0,1):0, d=Math.hypot(ax+bx*t-mx,az+bz*t-my);
+      if(d<bd){bd=d;best={ri,seg:sm.seg[j]};}}});
+  return best;
+}
+function roadDown(e,mx,my){
+  const before=snap(), hit=findPoint(mx,my);
+  if(hit){if(hit.ri!==selRoad)drawing=false;selRoad=hit.ri;selPt=hit.pi;
+    dragging={before,moved:false};refreshRoadUI();needDraw=true;return;}
+  if(e.detail>=2&&drawing){finishRoad();return;}
+  const seg=drawing?null:findSegment(mx,my);
+  if(seg){selRoad=seg.ri;selPt=seg.seg+1;roads[seg.ri].points.splice(seg.seg+1,0,{x:clamp(mx/N,0,1),z:clamp(my/N,0,1),bridge:false});
+    dragging={before,moved:true};refreshRoadUI();needDraw=true;return;}
+  if(!drawing||selRoad<0){roads.push({id:nextRoadId++,width:8,points:[]});selRoad=roads.length-1;drawing=true;}
+  const rd=roads[selRoad]; rd.points.push({x:clamp(mx/N,0,1),z:clamp(my/N,0,1),bridge:false}); selPt=rd.points.length-1;
+  commitRoads(before); needDraw=true;
+}
+function finishRoad(){
+  if(drawing&&selRoad>=0&&roads[selRoad].points.length<2){const b=snap();roads.splice(selRoad,1);selRoad=-1;selPt=-1;commitRoads(b);}
+  drawing=false;selPt=-1;refreshRoadUI();needDraw=true;
+}
+function deletePoint(){
+  if(selRoad<0||selPt<0)return; const b=snap(),rd=roads[selRoad];
+  rd.points.splice(selPt,1); selPt=-1;
+  if(!rd.points.length){roads.splice(selRoad,1);selRoad=-1;drawing=false;}
+  commitRoads(b);needDraw=true;
+}
+function bakeRoads(){
+  const cell=S.world/N; let any=false;
+  endStroke(); beginStroke('hc');
+  for(const rd of roads){
+    if(rd.points.length<2)continue;
+    const sm=sampleRoad(rd,0.5), runs=[]; let cur=null;
+    for(let j=0;j<sm.x.length;j++){
+      const sgi=Math.min(sm.seg[j],rd.points.length-2), bridge=!!rd.points[sgi].bridge;
+      if(bridge){cur=null;continue;}
+      if(!cur){cur=[];runs.push(cur);} cur.push(j);
+    }
+    const halfW=Math.max(0.75,rd.width/2/cell), shoulder=Math.max(0.5,opts.shoulder/cell), R=halfW+shoulder;
+    for(const run of runs){
+      if(run.length<2)continue;
+      const n=run.length, xs=run.map(j=>sm.x[j]), zs=run.map(j=>sm.z[j]);
+      const prof=new Float64Array(n), pre=new Float64Array(n+1);
+      for(let k=0;k<n;k++){prof[k]=heightAt(xs[k],zs[k]);pre[k+1]=pre[k]+prof[k];}
+      const wn=Math.max(1,Math.round(opts.smoothM/cell/0.5)), sp=new Float32Array(n);
+      for(let k=0;k<n;k++){const hw=Math.min(wn,k,n-1-k);sp[k]=(pre[k+hw+1]-pre[k-hw])/(2*hw+1);}
+      let bx0=Infinity,by0=Infinity,bx1=-Infinity,by1=-Infinity;
+      for(let k=0;k<n;k++){bx0=Math.min(bx0,xs[k]);bx1=Math.max(bx1,xs[k]);by0=Math.min(by0,zs[k]);by1=Math.max(by1,zs[k]);}
+      bx0=Math.max(0,Math.floor(bx0-R-1));by0=Math.max(0,Math.floor(by0-R-1));bx1=Math.min(N-1,Math.ceil(bx1+R+1));by1=Math.min(N-1,Math.ceil(by1+R+1));
+      const w=bx1-bx0+1,h=by1-by0+1; if(w<=0||h<=0)continue;
+      touch(bx0,by0,bx1,by1);
+      const best=new Float32Array(w*h).fill(1e9), bh=new Float32Array(w*h);
+      for(let k=0;k<n;k++){
+        const x0=Math.max(bx0,Math.floor(xs[k]-R)),x1=Math.min(bx1,Math.ceil(xs[k]+R)),y0=Math.max(by0,Math.floor(zs[k]-R)),y1=Math.min(by1,Math.ceil(zs[k]+R));
+        for(let y=y0;y<=y1;y++){const dy=y+0.5-zs[k];for(let x=x0;x<=x1;x++){const dx=x+0.5-xs[k],d=dx*dx+dy*dy,q=(y-by0)*w+(x-bx0);
+          if(d<best[q]){best[q]=d;bh[q]=sp[k];}}}
+      }
+      for(let y=by0;y<=by1;y++)for(let x=bx0;x<=bx1;x++){
+        const q=(y-by0)*w+(x-bx0); if(best[q]>=1e9)continue;
+        const d=Math.sqrt(best[q]); if(d>=R)continue;
+        const i=y*N+x;
+        let g=d<=halfW?1:1-(t=>t*t*(3-2*t))((d-halfW)/shoulder);
+        H[i]+=(bh[q]-H[i])*g;
+        const a=clamp((halfW+0.75-d)/1.5,0,1); if(a>0)paintPixel(i,6,a);
+      }
+      markDirty(bx0,by0,bx1+1,by1+1); any=true;
+    }
+  }
+  endStroke();
+  toast(any?'Roads baked into terrain (undoable)':'No non-bridge road segments to bake');
+}
+
+// =====================================================================================
+// SECTION 8: auto-paint
+// =====================================================================================
+function autoPaint(){
+  endStroke(); beginStroke('c');
+  const sc=S.maxH/(S.world/N)*0.5, thr=Math.tan(opts.slope*Math.PI/180); let cnt=0;
+  for(let ty=0;ty<N/TS;ty++)for(let tx=0;tx<N/TS;tx++){
+    let touched=false;
+    for(let y=ty*TS;y<ty*TS+TS;y++)for(let x=tx*TS;x<tx*TS+TS;x++){
+      const i=y*N+x; if(WC[0][i]!==255)continue;
+      const h=H[i]; let c=-1;
+      if(h<S.sea+opts.sand)c=3;
+      else{
+        const dx=(H[i+(x<N-1?1:0)]-H[i-(x>0?1:0)])*sc, dz=(H[y<N-1?i+N:i]-H[y>0?i-N:i])*sc;
+        if(Math.hypot(dx,dz)>thr)c=4; else if(h>opts.snow)c=5;
+      }
+      if(c<0)continue;
+      if(!touched){touch(x,y,x,y);touched=true;}
+      WC[0][i]=0;WC[c][i]=255;cnt++;
+    }
+  }
+  endStroke(); fullRender(); toast('Auto-paint changed '+cnt+' pixels');
+}
+
+// =====================================================================================
+// SECTION 9: PNG encoder (pure; tested separately in node)
+// =====================================================================================
+// ==PNG-BEGIN==
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(u8){let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=CRC_T[(c^u8[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function pngChunk(type,data){
+  const o=new Uint8Array(12+data.length),dv=new DataView(o.buffer);
+  dv.setUint32(0,data.length);for(let i=0;i<4;i++)o[4+i]=type.charCodeAt(i);o.set(data,8);
+  dv.setUint32(8+data.length,crc32(o.subarray(4,8+data.length)));return o;
+}
+async function zlibDeflate(u8){                 // 'deflate' = zlib-wrapped (RFC1950) stream
+  const cs=new CompressionStream('deflate'),w=cs.writable.getWriter();
+  w.write(u8).catch(()=>{});w.close().catch(()=>{});
+  return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+}
+// raw = unfiltered scanlines (big-endian for 16-bit). colorType 0 gray, 2 RGB, 6 RGBA. Uses PNG filter 1 (Sub).
+async function encodePNG(w,h,bitDepth,colorType,raw){
+  const ch={0:1,2:3,6:4}[colorType],bpp=ch*bitDepth/8,rowB=w*bpp;
+  if(raw.length!==rowB*h)throw new Error('encodePNG: bad raw length');
+  const f=new Uint8Array((rowB+1)*h);
+  for(let y=0;y<h;y++){const s=y*rowB,d=y*(rowB+1);f[d]=1;
+    for(let i=0;i<rowB;i++)f[d+1+i]=(raw[s+i]-(i>=bpp?raw[s+i-bpp]:0))&255;}
+  const idat=await zlibDeflate(f);
+  const ihdr=new Uint8Array(13),dv=new DataView(ihdr.buffer);
+  dv.setUint32(0,w);dv.setUint32(4,h);ihdr[8]=bitDepth;ihdr[9]=colorType;
+  const parts=[new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk('IHDR',ihdr),pngChunk('IDAT',idat),pngChunk('IEND',new Uint8Array(0))];
+  const out=new Uint8Array(parts.reduce((a,p)=>a+p.length,0));let o=0;for(const p of parts){out.set(p,o);o+=p.length;}
+  return out;
+}
+function gray16Raw(v,n){const o=new Uint8Array(n*n*2);for(let i=0;i<v.length;i++){o[2*i]=v[i]>>8;o[2*i+1]=v[i]&255;}return o;}
+// ==PNG-END==
+
+// =====================================================================================
+// SECTION 10: export
+// =====================================================================================
+function quantHeight(){const o=new Uint16Array(N*N);for(let i=0;i<o.length;i++)o[i]=Math.round(clamp(H[i],0,1)*65535);return o;}
+function quantWater(){const o=new Uint16Array(N*N);
+  for(let i=0;i<o.length;i++){const l=WL[i];o[i]=(l>=0&&l>H[i])?1+Math.round(clamp(l,0,1)*65534):0;}return o;}
+async function buildExport(){
+  const files=[], u16=quantHeight(), n=N*N;
+  files.push({name:'heightmap16.png',data:await encodePNG(N,N,16,0,gray16Raw(u16,N))});
+  files.push({name:'heightmap.r16',data:new Uint8Array(new Uint16Array(u16).buffer)});   // little-endian hosts only (all desktop browsers)
+  const s0=new Uint8Array(n*4),s1=new Uint8Array(n*4),bc=new Uint8Array(n*3);
+  for(let i=0;i<n;i++){
+    let bi=0,bv=-1;
+    for(let c=0;c<8;c++){const v=WC[c][i];(c<4?s0:s1)[i*4+(c&3)]=v;if(v>bv){bv=v;bi=c;}}
+    bc[i*3]=CR[bi];bc[i*3+1]=CG[bi];bc[i*3+2]=CB[bi];
+  }
+  files.push({name:'splat0.png',data:await encodePNG(N,N,8,6,s0)});
+  files.push({name:'splat1.png',data:await encodePNG(N,N,8,6,s1)});
+  files.push({name:'biome_color.png',data:await encodePNG(N,N,8,2,bc)});
+  files.push({name:'water.png',data:await encodePNG(N,N,16,0,gray16Raw(quantWater(),N))});
+  const rj={formatVersion:1,note:'nx,nz normalized 0..1 edge-to-edge; x,z world metres (x=nx*worldSize, z=nz*worldSize); y terrain height metres. bridge=true: segment to the NEXT point is a bridge. Curve: uniform Catmull-Rom through points.',
+    roads:roads.map(r=>({id:r.id,widthMeters:r.width,points:r.points.map(p=>({nx:p.x,nz:p.z,x:p.x*S.world,y:heightAt(p.x*N,p.z*N)*S.maxH,z:p.z*S.world,bridge:!!p.bridge}))}))};
+  files.push({name:'roads.json',data:JSON.stringify(rj,null,1)});
+  const mj={formatVersion:1,N,worldSizeMeters:S.world,maxHeightMeters:S.maxH,cellSizeMeters:S.world/N,seaLevel:S.sea,seaLevelMeters:S.sea*S.maxH,
+    classes:CLASSES,
+    files:{height16:'heightmap16.png',heightRaw16:'heightmap.r16',splat0:'splat0.png',splat1:'splat1.png',biomeColor:'biome_color.png',water:'water.png',roads:'roads.json'},
+    encodings:{
+      height:'uint16 0..65535 -> normalized v/65535 -> metres v/65535*maxHeightMeters. PNG is big-endian (PNG spec), .r16 is little-endian.',
+      splat0:'RGBA8 = weights of classes 0,1,2,3; splat1: classes 4,5,6,7. Straight alpha (not premultiplied). Sum of 8 weights = 255 per pixel.',
+      water:'uint16 PNG. 0 = no lake/river water; v>=1 -> surface normalized (v-1)/65534, metres (v-1)/65534*maxHeightMeters. Ocean is NOT included: ocean = terrain height < seaLevel.'},
+    coordinates:{origin:'top-left corner of image = world (0,0)',xAxis:'+X = increasing pixel column (right)',zAxis:'+Z = increasing pixel row (down the image)',yAxis:'+Y up; metres = normalized height*maxHeightMeters',
+      pixelToWorld:'pixel (i,j) centre -> x=(i+0.5)*cellSizeMeters, z=(j+0.5)*cellSizeMeters; normalized u=x/worldSizeMeters'}};
+  files.push({name:'map.json',data:JSON.stringify(mj,null,1)});
+  return files;
+}
+async function doExport(){
+  let dir=null;
+  if(window.showDirectoryPicker){
+    try{dir=await showDirectoryPicker({mode:'readwrite'});}
+    catch(e){if(e&&e.name==='AbortError')return;console.warn('directory picker failed, falling back to downloads',e);}
+  }
+  endStroke(); toast('Exporting...');
+  try{
+    const files=await buildExport();
+    for(const f of files){
+      if(dir){const fh=await dir.getFileHandle(f.name,{create:true}),w=await fh.createWritable();await w.write(f.data);await w.close();}
+      else{download(f.name,f.data);await new Promise(r=>setTimeout(r,350));}
+    }
+    toast('Exported '+files.length+' files'+(dir?' to '+dir.name:' (downloads)'));
+  }catch(e){console.error(e);toast('Export failed: '+e.message);}
+}
+function download(name,data){
+  const a=document.createElement('a'),u=URL.createObjectURL(new Blob([data]));a.href=u;a.download=name;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000);
+}
+
+// =====================================================================================
+// SECTION 11: project save / load / autosave
+// =====================================================================================
+function serialize(){
+  const layers=[],parts=[];let off=0;
+  const add=(name,type,arr)=>{layers.push({name,type,offset:off,byteLength:arr.byteLength});parts.push(arr);off+=arr.byteLength;};
+  add('height','f32',H);add('water','f32',WL);WC.forEach((a,c)=>add('weight'+c,'u8',a));
+  const header={format:'tmap',version:1,N,settings:{worldSizeMeters:S.world,maxHeightMeters:S.maxH,seaLevel:S.sea},roads,nextRoadId,layers};
+  let hb=new TextEncoder().encode(JSON.stringify(header));
+  const hl=(hb.length+3)&~3, out=new Uint8Array(8+hl+off);
+  out.set([84,77,65,80],0);new DataView(out.buffer).setUint32(4,hl,true);out.fill(32,8,8+hl);out.set(hb,8);
+  for(let i=0;i<layers.length;i++)out.set(new Uint8Array(parts[i].buffer,parts[i].byteOffset,parts[i].byteLength),8+hl+layers[i].offset);
+  return out;
+}
+function loadProject(buf){
+  const u8=new Uint8Array(buf);
+  if(String.fromCharCode(...u8.subarray(0,4))!=='TMAP')throw new Error('Not a .tmap file');
+  const hl=new DataView(buf).getUint32(4,true), hd=JSON.parse(new TextDecoder().decode(u8.subarray(8,8+hl)));
+  if(![512,1024,2048].includes(hd.N))throw new Error('Unsupported size '+hd.N);
+  allocate(hd.N);
+  S.world=hd.settings.worldSizeMeters;S.maxH=hd.settings.maxHeightMeters;S.sea=hd.settings.seaLevel;
+  const base=8+hl, L={};hd.layers.forEach(l=>L[l.name]=l);
+  const f32=l=>new Float32Array(buf.slice(base+l.offset,base+l.offset+l.byteLength));
+  H=f32(L.height);WL=f32(L.water);
+  for(let c=0;c<8;c++){const l=L['weight'+c];WC[c]=new Uint8Array(buf.slice(base+l.offset,base+l.offset+l.byteLength));}
+  roads=hd.roads||[];nextRoadId=hd.nextRoadId||(roads.reduce((a,r)=>Math.max(a,r.id),0)+1);
+  afterMapReplaced();
+}
+function afterMapReplaced(){
+  syncMapUI();fitView();fullRender();refreshRoadUI();modified=false;
+}
+function newMap(n,world,maxH,sea,base){
+  allocate(n);S.world=world;S.maxH=maxH;S.sea=sea;H.fill(base);afterMapReplaced();
+}
+async function saveProject(){
+  endStroke();const data=serialize();
+  if(window.showSaveFilePicker){
+    try{const fh=await showSaveFilePicker({suggestedName:'map.tmap',types:[{description:'Terrain map',accept:{'application/octet-stream':['.tmap']}}]});
+      const w=await fh.createWritable();await w.write(data);await w.close();toast('Saved');return;}
+    catch(e){if(e&&e.name==='AbortError')return;}
+  }
+  download('map.tmap',data);toast('Saved (download)');
+}
+// IndexedDB autosave
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('terrain-editor',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbPut(k,v){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
+async function idbGet(k){const db=await idb();return new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+let autosaveBusy=false;
+async function autosaveTick(){
+  if(!modified||active||stroke||autosaveBusy)return;
+  autosaveBusy=true;
+  try{const d=serialize();await idbPut('autosave',{ts:Date.now(),buf:d.buffer});modified=false;lastSaveTs=Date.now();$('saveInfo').textContent='autosaved '+new Date(lastSaveTs).toLocaleTimeString();}
+  catch(e){console.warn('autosave failed',e);}
+  autosaveBusy=false;
+}
+setInterval(autosaveTick,10000);
+
+// =====================================================================================
+// SECTION 12: UI construction
+// =====================================================================================
+function h(tag,props,...kids){const e=document.createElement(tag);Object.assign(e,props||{});kids.flat().forEach(k=>e.append(k));return e;}
+const ctl={};
+function section(parent,title,forTools){
+  const d=h('div'); if(forTools)d.dataset.for=forTools;
+  d.append(h('h4',{textContent:title}));parent.append(d);return d;
+}
+function slider(parent,key,label,min,max,step,val,cb,fmt){
+  const inp=h('input',{type:'range',min,max,step,value:val}),v=h('span',{className:'v'});
+  const show=x=>v.textContent=fmt?fmt(+x):(+x);
+  inp.oninput=()=>{show(inp.value);cb(+inp.value);}; show(val);
+  parent.append(h('div',{className:'row'},h('label',{textContent:label}),inp,v));
+  ctl[key]={set(x){inp.value=x;show(inp.value);}};return inp;
+}
+function checkbox(parent,label,val,cb){
+  const c=h('input',{type:'checkbox',checked:val});c.onchange=()=>cb(c.checked);
+  parent.append(h('div',{className:'row'},h('label',{textContent:label}),c));return c;
+}
+const TOOLS=[['raise','Raise','R'],['lower','Lower','L'],['smooth','Smooth','S'],['flatten','Flatten','F'],['mountain','Mountain','M'],['hills','Hills','H'],
+  ['water','Water','W'],['erasewater','Erase water','E'],['paint','Paint','P'],['road','Road','T'],['pan','Pan','V']];
+function setTool(t){
+  if(tool==='road'&&t!=='road'){drawing=false;}
+  finishStroke();tool=t;
+  document.querySelectorAll('#left button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  document.querySelectorAll('#right [data-for]').forEach(s=>s.style.display=s.dataset.for.split(' ').includes(t)?'':'none');
+  cv.style.cursor=t==='pan'?'grab':t==='road'?'default':'none'; needDraw=true;
+}
+function buildUI(){
+  const left=$('left');
+  TOOLS.forEach(([id,name,key])=>{const b=h('button',{onclick:()=>setTool(id)},name,h('kbd',{textContent:key}));b.dataset.t=id;left.append(b);});
+
+  const R=$('right');
+  const sb=section(R,'Brush');
+  slider(sb,'radius','Radius (px)',2,500,1,brush.radius,v=>brush.radius=v);
+  slider(sb,'strength','Strength',0.02,1,0.01,brush.strength,v=>brush.strength=v,v=>v.toFixed(2));
+  slider(sb,'hardness','Hardness',0,1,0.01,brush.hardness,v=>brush.hardness=v,v=>v.toFixed(2));
+  const sh=h('select');['smooth','linear','sharp'].forEach((n,i)=>sh.append(h('option',{value:i,textContent:n})));
+  sh.onchange=()=>brush.shape=+sh.value;
+  sb.append(h('div',{className:'row'},h('label',{textContent:'Falloff shape'}),sh));
+  sb.append(h('div',{className:'small',textContent:'Hardness 1 = cliffs/plateaus, 0 = soft hills.'}));
+
+  const fl=section(R,'Flatten','flatten');
+  checkbox(fl,'Typed target',opts.flatTyped,v=>opts.flatTyped=v);
+  const ft=h('input',{type:'number',value:opts.flatMeters,min:0,step:1});ft.oninput=()=>opts.flatMeters=+ft.value||0;
+  fl.append(h('div',{className:'row'},h('label',{textContent:'Target (m)'}),ft));
+  fl.append(h('div',{className:'small',textContent:'Otherwise: Alt+click picked height, else height at stroke start.'}));
+  fl.append(h('div',{className:'row'},h('span',{id:'flatInfo',className:'small',textContent:'Picked: none'}),h('button',{textContent:'Clear pick',onclick:()=>{opts.flatPicked=null;$('flatInfo').textContent='Picked: none';}})));
+  const mt=section(R,'Mountain','mountain');
+  slider(mt,'mtScale','Scale (px)',20,500,5,opts.mtScale,v=>opts.mtScale=v);
+  slider(mt,'mtSharp','Ridge sharp',0.5,5,0.1,opts.mtSharp,v=>opts.mtSharp=v,v=>v.toFixed(1));
+  slider(mt,'mtAmp','Amplitude',0.1,4,0.1,opts.mtAmp,v=>opts.mtAmp=v,v=>v.toFixed(1));
+  const hl=section(R,'Hills','hills');
+  slider(hl,'hlScale','Scale (px)',30,800,5,opts.hlScale,v=>opts.hlScale=v);
+  slider(hl,'hlAmp','Amplitude',0.1,4,0.1,opts.hlAmp,v=>opts.hlAmp=v,v=>v.toFixed(1));
+  const wt=section(R,'Water','water');
+  slider(wt,'wDepth','Bed depth (m)',0.5,60,0.5,opts.waterDepth,v=>opts.waterDepth=v,v=>v.toFixed(1));
+  wt.append(h('div',{className:'small',textContent:'Level = terrain height at stroke start. Ocean: Sea level slider below.'}));
+
+  const pt=section(R,'Surface','paint');
+  const sw=h('div',{className:'sw'});
+  CLASSES.forEach(c=>{const d=h('div',{textContent:c.name});d.style.background=c.color;if(c.id===opts.cls)d.classList.add('on');
+    d.onclick=()=>{opts.cls=c.id;[...sw.children].forEach((x,i)=>x.classList.toggle('on',i===c.id));};sw.append(d);});
+  pt.append(sw);
+  pt.append(h('div',{className:'small',textContent:'Strength = density. Hardness = blend softness.'}));
+  const ap=section(R,'Auto-paint (only pure grass)','paint');
+  slider(ap,'apSlope','Rock slope (deg)',5,80,1,opts.slope,v=>opts.slope=v);
+  slider(ap,'apSnow','Snow height',0,1,0.01,opts.snow,v=>opts.snow=v,v=>v.toFixed(2));
+  slider(ap,'apSand','Sand band',0,0.15,0.005,opts.sand,v=>opts.sand=v,v=>v.toFixed(3));
+  ap.append(h('button',{textContent:'Auto-paint now',onclick:autoPaint}));
+
+  const rd=section(R,'Roads','road');
+  rd.append(h('div',{id:'roadlist'}));
+  const rb=h('div',{className:'row'});
+  rb.append(h('button',{textContent:'New',onclick:()=>{finishRoad();selRoad=-1;selPt=-1;refreshRoadUI();needDraw=true;toast('Click the map to start a new road');}}),
+    h('button',{textContent:'Continue',onclick:()=>{if(selRoad>=0){drawing=true;toast('Click to append points; Enter to finish');}}}),
+    h('button',{textContent:'Finish',onclick:finishRoad}),
+    h('button',{textContent:'Del road',onclick:()=>{if(selRoad<0)return;const b=snap();roads.splice(selRoad,1);selRoad=-1;selPt=-1;drawing=false;commitRoads(b);needDraw=true;}}));
+  rd.append(rb);
+  const wi=h('input',{type:'number',id:'rdWidth',min:1,max:100,step:1,value:8});
+  wi.onchange=()=>{if(selRoad<0)return;const b=snap();roads[selRoad].width=clamp(+wi.value||8,1,100);commitRoads(b);needDraw=true;};
+  rd.append(h('div',{className:'row'},h('label',{textContent:'Width (m)'}),wi));
+  const bi=h('input',{type:'checkbox',id:'ptBridge'});
+  bi.onchange=()=>{if(selRoad<0||selPt<0)return;const b=snap();roads[selRoad].points[selPt].bridge=bi.checked;commitRoads(b);needDraw=true;};
+  rd.append(h('div',{className:'row'},h('label',{textContent:'Pt bridge'}),bi,h('span',{className:'small',textContent:'segment to next pt'})));
+  slider(rd,'shoulder','Shoulder (m)',0,60,1,opts.shoulder,v=>opts.shoulder=v);
+  slider(rd,'smoothM','Profile smooth (m)',0,200,5,opts.smoothM,v=>opts.smoothM=v);
+  rd.append(h('button',{textContent:'Bake roads into terrain',onclick:bakeRoads}));
+
+  const vw=section(R,'View');
+  const ms=h('select');[['both','Height + biome'],['height','Shaded height'],['biome','Biome colours']].forEach(([v,t])=>ms.append(h('option',{value:v,textContent:t})));
+  ms.onchange=()=>{view.mode=ms.value;fullRender();};
+  vw.append(h('div',{className:'row'},h('label',{textContent:'Mode'}),ms));
+  checkbox(vw,'Water',view.water,v=>{view.water=v;fullRender();});
+  checkbox(vw,'Roads',view.roads,v=>{view.roads=v;needDraw=true;});
+  ctl.gridCb=checkbox(vw,'Grid',view.grid,v=>{view.grid=v;needDraw=true;});
+  slider(vw,'biomeOp','Biome opacity',0,1,0.01,view.biomeOp,v=>{view.biomeOp=v;fullRender();},v=>v.toFixed(2));
+  slider(vw,'waterOp','Water opacity',0,1,0.01,view.waterOp,v=>{view.waterOp=v;fullRender();},v=>v.toFixed(2));
+  slider(vw,'sea','Sea level',0,1,0.005,S.sea,v=>{S.sea=v;fullRender();},v=>v.toFixed(3));
+
+  const mp=section(R,'Map');
+  const ws=h('input',{type:'number',id:'mWorld',min:100,step:100}),mh=h('input',{type:'number',id:'mMax',min:10,step:10});
+  ws.onchange=()=>{S.world=Math.max(100,+ws.value||2000);fullRender();setModified();};
+  mh.onchange=()=>{S.maxH=Math.max(10,+mh.value||200);fullRender();setModified();};
+  mp.append(h('div',{className:'row'},h('label',{textContent:'World size (m)'}),ws),h('div',{className:'row'},h('label',{textContent:'Max height (m)'}),mh),
+    h('div',{id:'mInfo',className:'small'}));
+  setTool('raise');
+}
+function syncMapUI(){
+  $('mWorld').value=S.world;$('mMax').value=S.maxH;ctl.sea.set(S.sea);
+  $('mInfo').textContent=N+' x '+N+' px, '+(S.world/N).toFixed(2)+' m/px';
+}
+function refreshRoadUI(){
+  const l=$('roadlist'); if(!l)return; l.textContent='';
+  roads.forEach((r,i)=>{const d=h('div',{textContent:'Road #'+r.id+'  ('+r.points.length+' pts, '+r.width+' m)'});
+    if(i===selRoad)d.className='on';d.onclick=()=>{drawing=false;selRoad=i;selPt=-1;refreshRoadUI();needDraw=true;};l.append(d);});
+  const r=roads[selRoad]; $('rdWidth').value=r?r.width:8;
+  const p=r&&r.points[selPt]; $('ptBridge').checked=!!(p&&p.bridge); $('ptBridge').disabled=!p;
+}
+
+// =====================================================================================
+// SECTION 13: input handling
+// =====================================================================================
+let spaceDown=false, pan=null;
+function evPos(e){const r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];}
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('pointerdown',e=>{
+  cv.setPointerCapture(e.pointerId);
+  const [sx,sy]=evPos(e),[mx,my]=toMapPt(sx,sy);
+  if(e.button===1||(e.button===0&&(spaceDown||tool==='pan'))){pan={sx:e.clientX,sy:e.clientY,ox:view.ox,oy:view.oy};cv.style.cursor='grabbing';e.preventDefault();return;}
+  if(e.button!==0)return;
+  if(tool==='road'){roadDown(e,mx,my);return;}
+  if(e.altKey&&tool==='flatten'){opts.flatPicked=heightAt(mx,my);$('flatInfo').textContent='Picked: '+(opts.flatPicked*S.maxH).toFixed(1)+' m';return;}
+  startStroke(e,mx,my);
+});
+cv.addEventListener('pointermove',e=>{
+  const [sx,sy]=evPos(e),[mx,my]=toMapPt(sx,sy); hover={sx,sy,mx,my};needDraw=true;
+  if(pan){view.ox=pan.ox+e.clientX-pan.sx;view.oy=pan.oy+e.clientY-pan.sy;}
+  else if(dragging&&selRoad>=0&&selPt>=0){const p=roads[selRoad].points[selPt];p.x=clamp(mx/N,0,1);p.z=clamp(my/N,0,1);dragging.moved=true;}
+  else if(active){
+    const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e];
+    for(const c of (evs.length?evs:[e])){const [cx,cy]=evPos(c),[a,b]=toMapPt(cx,cy);strokeTo(a,b,pressureOf(c));}
+  }
+  updateStatus();
+});
+function endPointer(e){
+  if(pan){pan=null;cv.style.cursor=tool==='pan'?'grab':tool==='road'?'default':'none';}
+  if(dragging){const d=dragging;dragging=null;if(d.moved)commitRoads(d.before);}
+  finishStroke();
+}
+cv.addEventListener('pointerup',endPointer);
+cv.addEventListener('pointercancel',endPointer);
+cv.addEventListener('pointerleave',()=>{hover=null;needDraw=true;});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();const [sx,sy]=evPos(e),nz=clamp(view.z*Math.exp(-e.deltaY*0.0015),0.05,40);
+  view.ox=sx-(sx-view.ox)*nz/view.z;view.oy=sy-(sy-view.oy)*nz/view.z;view.z=nz;needDraw=true;
+},{passive:false});
+function updateStatus(){
+  const gi=gridInfo?'  |  '+gridInfo:'';
+  if(!hover){$('status').textContent='zoom '+Math.round(view.z*100)+'%'+gi;return;}
+  const [mx,my]=toMapPt(hover.sx,hover.sy);
+  if(mx<0||my<0||mx>=N||my>=N){$('status').textContent='outside map | zoom '+Math.round(view.z*100)+'%'+gi;return;}
+  const px=Math.floor(mx),py=Math.floor(my),i=py*N+px;
+  let dom=0;for(let c=1;c<8;c++)if(WC[c][i]>WC[dom][i])dom=c;
+  $('status').textContent=`px (${px}, ${py})  |  world x ${(mx/N*S.world).toFixed(1)} m, z ${(my/N*S.world).toFixed(1)} m  |  height ${(heightAt(mx,my)*S.maxH).toFixed(1)} m`
+    +`${WL[i]>H[i]?'  |  lake '+(WL[i]*S.maxH).toFixed(1)+' m':''}${H[i]<S.sea?'  |  ocean':''}  |  ${CLASSES[dom].name}  |  zoom ${Math.round(view.z*100)}%  |  tool: ${tool}${gi}`;
+}
+window.addEventListener('keydown',e=>{
+  const t=e.target,typing=t.tagName==='SELECT'||t.tagName==='TEXTAREA'||(t.tagName==='INPUT'&&(t.type==='number'||t.type==='text'));
+  if(e.key==='F1'||(!typing&&e.key==='?')){e.preventDefault();$('helpDlg').hidden=!$('helpDlg').hidden;return;}
+  if(e.key==='Escape'){$('helpDlg').hidden=true;$('newDlg').hidden=true;}
+  if(typing)return;
+  if(e.ctrlKey||e.metaKey){
+    const k=e.key.toLowerCase();
+    if(k==='z'){e.preventDefault();e.shiftKey?redo():undo();}
+    else if(k==='y'){e.preventDefault();redo();}
+    else if(k==='s'){e.preventDefault();saveProject();}
+    return;
+  }
+  if(e.key===' '){e.preventDefault();spaceDown=true;cv.style.cursor='grab';needDraw=true;return;}
+  if(e.key==='['){ctl.radius.set(brush.radius=clamp(Math.round(brush.radius*0.85-1),2,500));return;}
+  if(e.key===']'){ctl.radius.set(brush.radius=clamp(Math.round(brush.radius*1.15+1),2,500));return;}
+  if(e.key==='{'){ctl.hardness.set(brush.hardness=clamp(brush.hardness-0.05,0,1));return;}
+  if(e.key==='}'){ctl.hardness.set(brush.hardness=clamp(brush.hardness+0.05,0,1));return;}
+  if(tool==='road'){
+    if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();deletePoint();return;}
+    if(e.key==='Enter'){finishRoad();return;}
+  }
+  const k=e.key.toLowerCase();
+  const tt=TOOLS.find(x=>x[2].toLowerCase()===k);
+  if(tt&&!e.altKey){setTool(tt[0]);return;}
+  if(k==='g'){view.grid=!view.grid;ctl.gridCb.checked=view.grid;needDraw=true;}
+});
+window.addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;setTool(tool);}});
+document.addEventListener('click',e=>{if(e.target.tagName==='BUTTON')e.target.blur();});
+
+// top bar
+$('bNew').onclick=()=>{$('newDlg').hidden=false;};
+$('nCancel').onclick=()=>{$('newDlg').hidden=true;};
+$('nOk').onclick=()=>{
+  if(modified&&!confirm('Discard unsaved changes?'))return;
+  $('newDlg').hidden=true;
+  newMap(+$('nN').value,Math.max(100,+$('nW').value||2000),Math.max(10,+$('nH').value||200),clamp(+$('nS').value,0,1),clamp(+$('nB').value,0,1));
+};
+$('bOpen').onclick=()=>$('fileIn').click();
+$('fileIn').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{loadProject(await f.arrayBuffer());toast('Opened '+f.name);}catch(err){alert('Open failed: '+err.message);}
+};
+$('bSave').onclick=saveProject;
+$('bExport').onclick=doExport;
+$('bUndo').onclick=undo;$('bRedo').onclick=redo;
+$('bHelp').onclick=()=>$('helpDlg').hidden=false;
+$('helpClose').onclick=()=>$('helpDlg').hidden=true;
+
+// =====================================================================================
+// SECTION 14: main loop + startup
+// =====================================================================================
+let airN=0;
+function frame(){
+  if(active&&!moved&&AIR.has(tool)&&(++airN%4===0)){if(HOLD.has(tool))strokeLvl+=strokeU;stamp(lx,ly,lp);}
+  moved=false;
+  flushRender();
+  if(needDraw){needDraw=false;draw();}
+  if(gridDirty())drawGrid();
+  requestAnimationFrame(frame);
+}
+new ResizeObserver(()=>{const w=$('wrap');const first=cv.width<=300&&cv.height<=150;cv.width=gv.width=w.clientWidth;cv.height=gv.height=w.clientHeight;if(first)fitView();needDraw=true;}).observe($('wrap'));
+buildUI();
+newMap(1024,2000,200,0.1,0.2);
+fitView();
+requestAnimationFrame(frame);
+(async()=>{
+  try{
+    const a=await idbGet('autosave');
+    if(a&&a.buf&&confirm('Restore autosaved map from '+new Date(a.ts).toLocaleString()+'?')){loadProject(a.buf);toast('Restored autosave');}
+  }catch(e){console.warn('autosave restore failed',e);}
+})();
+</script>
+</body>
+</html>

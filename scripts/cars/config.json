@@ -1,0 +1,9 @@
+{
+  "blender": "D:/Softwares/Blender/blender.exe",
+  "src": "public/models/Cars",
+  "out": "public/cars",
+  "credits": null,
+  "overrides": {
+    "truck-with-trailer": { "drivable": false }
+  }
+}

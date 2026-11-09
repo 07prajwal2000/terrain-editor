@@ -1,0 +1,1034 @@
+{
+ "version": 1,
+ "cars": [
+  {
+   "id": "ambulance",
+   "name": "Ambulance",
+   "glb": "/cars/ambulance.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.906,
+    "width": 2.814,
+    "height": 2.849
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 3.9946,
+   "trackWidth": 1.8754,
+   "wheels": {
+    "fl": [
+     0.9377,
+     0.4106,
+     1.9973
+    ],
+    "fr": [
+     -0.9377,
+     0.4106,
+     1.9973
+    ],
+    "rl": [
+     0.9377,
+     0.4106,
+     -1.9973
+    ],
+    "rr": [
+     -0.9377,
+     0.4106,
+     -1.9973
+    ]
+   },
+   "triangles": 1580,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 0,
+    "row": 0
+   }
+  },
+  {
+   "id": "bus",
+   "name": "Bus",
+   "glb": "/cars/bus.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 13.699,
+    "width": 3.814,
+    "height": 4.274
+   },
+   "wheelRadius": 0.663,
+   "wheelbase": 6.9,
+   "trackWidth": 2.6478,
+   "wheels": {
+    "fl": [
+     1.3239,
+     0.663,
+     3.45
+    ],
+    "fr": [
+     -1.3239,
+     0.663,
+     3.45
+    ],
+    "rl": [
+     1.3239,
+     0.663,
+     -3.45
+    ],
+    "rr": [
+     -1.3239,
+     0.663,
+     -3.45
+    ]
+   },
+   "triangles": 1706,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 1,
+    "row": 0
+   }
+  },
+  {
+   "id": "firetruck",
+   "name": "Firetruck",
+   "glb": "/cars/firetruck.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 9.599,
+    "width": 3.414,
+    "height": 3.934
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 6.9546,
+   "trackWidth": 2.4754,
+   "wheels": {
+    "fl": [
+     1.2377,
+     0.4106,
+     3.4773
+    ],
+    "fr": [
+     -1.2377,
+     0.4106,
+     3.4773
+    ],
+    "rl": [
+     1.2377,
+     0.4106,
+     -3.4773
+    ],
+    "rr": [
+     -1.2377,
+     0.4106,
+     -3.4773
+    ]
+   },
+   "triangles": 3552,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 2,
+    "row": 0
+   }
+  },
+  {
+   "id": "hatchback",
+   "name": "Hatchback",
+   "glb": "/cars/hatchback.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.106,
+    "width": 2.814,
+    "height": 2.011
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 3.2176,
+   "trackWidth": 1.947,
+   "wheels": {
+    "fl": [
+     0.9735,
+     0.4106,
+     1.6088
+    ],
+    "fr": [
+     -0.9735,
+     0.4106,
+     1.6088
+    ],
+    "rl": [
+     0.9735,
+     0.4106,
+     -1.6088
+    ],
+    "rr": [
+     -0.9735,
+     0.4106,
+     -1.6088
+    ]
+   },
+   "triangles": 1382,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 3,
+    "row": 0
+   }
+  },
+  {
+   "id": "limousine",
+   "name": "Limousine",
+   "glb": "/cars/limousine.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 10.242,
+    "width": 2.814,
+    "height": 2.011
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 8.2176,
+   "trackWidth": 1.947,
+   "wheels": {
+    "fl": [
+     0.9735,
+     0.4106,
+     4.1088
+    ],
+    "fr": [
+     -0.9735,
+     0.4106,
+     4.1088
+    ],
+    "rl": [
+     0.9735,
+     0.4106,
+     -4.1088
+    ],
+    "rr": [
+     -0.9735,
+     0.4106,
+     -4.1088
+    ]
+   },
+   "triangles": 1686,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 4,
+    "row": 0
+   }
+  },
+  {
+   "id": "monster-truck",
+   "name": "Monster Truck",
+   "glb": "/cars/monster-truck.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.486,
+    "width": 4.468,
+    "height": 3.731
+   },
+   "wheelRadius": 0.9169,
+   "wheelbase": 3.2,
+   "trackWidth": 3.4278,
+   "wheels": {
+    "fl": [
+     1.7139,
+     0.9169,
+     1.6
+    ],
+    "fr": [
+     -1.7139,
+     0.9169,
+     1.6
+    ],
+    "rl": [
+     1.7139,
+     0.9169,
+     -1.6
+    ],
+    "rr": [
+     -1.7139,
+     0.9169,
+     -1.6
+    ]
+   },
+   "triangles": 3588,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 5,
+    "row": 0
+   }
+  },
+  {
+   "id": "muscle",
+   "name": "Muscle",
+   "glb": "/cars/muscle.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 6.055,
+    "width": 2.814,
+    "height": 1.911
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 3.2176,
+   "trackWidth": 1.947,
+   "wheels": {
+    "fl": [
+     0.9735,
+     0.4106,
+     1.6088
+    ],
+    "fr": [
+     -0.9735,
+     0.4106,
+     1.6088
+    ],
+    "rl": [
+     0.9735,
+     0.4106,
+     -1.6088
+    ],
+    "rr": [
+     -0.9735,
+     0.4106,
+     -1.6088
+    ]
+   },
+   "triangles": 1736,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 6,
+    "row": 0
+   }
+  },
+  {
+   "id": "muscle-2",
+   "name": "Muscle 2",
+   "glb": "/cars/muscle-2.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 6.055,
+    "width": 2.814,
+    "height": 1.911
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 3.2176,
+   "trackWidth": 1.947,
+   "wheels": {
+    "fl": [
+     0.9735,
+     0.4106,
+     1.6088
+    ],
+    "fr": [
+     -0.9735,
+     0.4106,
+     1.6088
+    ],
+    "rl": [
+     0.9735,
+     0.4106,
+     -1.6088
+    ],
+    "rr": [
+     -0.9735,
+     0.4106,
+     -1.6088
+    ]
+   },
+   "triangles": 1940,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 7,
+    "row": 0
+   }
+  },
+  {
+   "id": "pickup",
+   "name": "Pickup",
+   "glb": "/cars/pickup.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.039,
+    "width": 2.814,
+    "height": 2.211
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 3.2176,
+   "trackWidth": 1.947,
+   "wheels": {
+    "fl": [
+     0.9735,
+     0.4106,
+     1.6088
+    ],
+    "fr": [
+     -0.9735,
+     0.4106,
+     1.6088
+    ],
+    "rl": [
+     0.9735,
+     0.4106,
+     -1.6088
+    ],
+    "rr": [
+     -0.9735,
+     0.4106,
+     -1.6088
+    ]
+   },
+   "triangles": 1662,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 0,
+    "row": 1
+   }
+  },
+  {
+   "id": "police-muscle",
+   "name": "Police Muscle",
+   "glb": "/cars/police-muscle.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 6.055,
+    "width": 2.814,
+    "height": 2.089
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 3.2176,
+   "trackWidth": 1.947,
+   "wheels": {
+    "fl": [
+     0.9735,
+     0.4106,
+     1.6088
+    ],
+    "fr": [
+     -0.9735,
+     0.4106,
+     1.6088
+    ],
+    "rl": [
+     0.9735,
+     0.4106,
+     -1.6088
+    ],
+    "rr": [
+     -0.9735,
+     0.4106,
+     -1.6088
+    ]
+   },
+   "triangles": 1776,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 1,
+    "row": 1
+   }
+  },
+  {
+   "id": "police-sedan",
+   "name": "Police Sedan",
+   "glb": "/cars/police-sedan.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.233,
+    "width": 2.814,
+    "height": 2.19
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 3.2176,
+   "trackWidth": 1.947,
+   "wheels": {
+    "fl": [
+     0.9735,
+     0.4106,
+     1.6088
+    ],
+    "fr": [
+     -0.9735,
+     0.4106,
+     1.6088
+    ],
+    "rl": [
+     0.9735,
+     0.4106,
+     -1.6088
+    ],
+    "rr": [
+     -0.9735,
+     0.4106,
+     -1.6088
+    ]
+   },
+   "triangles": 1512,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 2,
+    "row": 1
+   }
+  },
+  {
+   "id": "police-sports",
+   "name": "Police Sports",
+   "glb": "/cars/police-sports.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.728,
+    "width": 2.634,
+    "height": 1.951
+   },
+   "wheelRadius": 0.4422,
+   "wheelbase": 3.22,
+   "trackWidth": 1.98,
+   "wheels": {
+    "fl": [
+     0.99,
+     0.4422,
+     1.61
+    ],
+    "fr": [
+     -0.99,
+     0.4422,
+     1.61
+    ],
+    "rl": [
+     0.99,
+     0.4422,
+     -1.61
+    ],
+    "rr": [
+     -0.99,
+     0.4422,
+     -1.61
+    ]
+   },
+   "triangles": 1418,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 3,
+    "row": 1
+   }
+  },
+  {
+   "id": "police-suv",
+   "name": "Police SUV",
+   "glb": "/cars/police-suv.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.039,
+    "width": 2.814,
+    "height": 2.264
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 3.2176,
+   "trackWidth": 1.947,
+   "wheels": {
+    "fl": [
+     0.9735,
+     0.4106,
+     1.6088
+    ],
+    "fr": [
+     -0.9735,
+     0.4106,
+     1.6088
+    ],
+    "rl": [
+     0.9735,
+     0.4106,
+     -1.6088
+    ],
+    "rr": [
+     -0.9735,
+     0.4106,
+     -1.6088
+    ]
+   },
+   "triangles": 1704,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 4,
+    "row": 1
+   }
+  },
+  {
+   "id": "roadster",
+   "name": "Roadster",
+   "glb": "/cars/roadster.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.728,
+    "width": 2.634,
+    "height": 1.842
+   },
+   "wheelRadius": 0.4422,
+   "wheelbase": 3.22,
+   "trackWidth": 1.98,
+   "wheels": {
+    "fl": [
+     0.99,
+     0.4422,
+     1.61
+    ],
+    "fr": [
+     -0.99,
+     0.4422,
+     1.61
+    ],
+    "rl": [
+     0.99,
+     0.4422,
+     -1.61
+    ],
+    "rr": [
+     -0.99,
+     0.4422,
+     -1.61
+    ]
+   },
+   "triangles": 1772,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 5,
+    "row": 1
+   }
+  },
+  {
+   "id": "sedan",
+   "name": "Sedan",
+   "glb": "/cars/sedan.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.233,
+    "width": 2.814,
+    "height": 2.011
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 3.2176,
+   "trackWidth": 1.947,
+   "wheels": {
+    "fl": [
+     0.9735,
+     0.4106,
+     1.6088
+    ],
+    "fr": [
+     -0.9735,
+     0.4106,
+     1.6088
+    ],
+    "rl": [
+     0.9735,
+     0.4106,
+     -1.6088
+    ],
+    "rr": [
+     -0.9735,
+     0.4106,
+     -1.6088
+    ]
+   },
+   "triangles": 1472,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 6,
+    "row": 1
+   }
+  },
+  {
+   "id": "sports",
+   "name": "Sports",
+   "glb": "/cars/sports.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.728,
+    "width": 2.634,
+    "height": 1.842
+   },
+   "wheelRadius": 0.4422,
+   "wheelbase": 3.22,
+   "trackWidth": 1.98,
+   "wheels": {
+    "fl": [
+     0.99,
+     0.4422,
+     1.61
+    ],
+    "fr": [
+     -0.99,
+     0.4422,
+     1.61
+    ],
+    "rl": [
+     0.99,
+     0.4422,
+     -1.61
+    ],
+    "rr": [
+     -0.99,
+     0.4422,
+     -1.61
+    ]
+   },
+   "triangles": 1378,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 7,
+    "row": 1
+   }
+  },
+  {
+   "id": "suv",
+   "name": "SUV",
+   "glb": "/cars/suv.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.039,
+    "width": 2.814,
+    "height": 2.298
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 3.2176,
+   "trackWidth": 1.947,
+   "wheels": {
+    "fl": [
+     0.9735,
+     0.4106,
+     1.6088
+    ],
+    "fr": [
+     -0.9735,
+     0.4106,
+     1.6088
+    ],
+    "rl": [
+     0.9735,
+     0.4106,
+     -1.6088
+    ],
+    "rr": [
+     -0.9735,
+     0.4106,
+     -1.6088
+    ]
+   },
+   "triangles": 1752,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 0,
+    "row": 2
+   }
+  },
+  {
+   "id": "taxi",
+   "name": "Taxi",
+   "glb": "/cars/taxi.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.233,
+    "width": 2.814,
+    "height": 2.319
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 3.2176,
+   "trackWidth": 1.947,
+   "wheels": {
+    "fl": [
+     0.9735,
+     0.4106,
+     1.6088
+    ],
+    "fr": [
+     -0.9735,
+     0.4106,
+     1.6088
+    ],
+    "rl": [
+     0.9735,
+     0.4106,
+     -1.6088
+    ],
+    "rr": [
+     -0.9735,
+     0.4106,
+     -1.6088
+    ]
+   },
+   "triangles": 1520,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 1,
+    "row": 2
+   }
+  },
+  {
+   "id": "truck",
+   "name": "Truck",
+   "glb": "/cars/truck.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.383,
+    "width": 3.414,
+    "height": 3.211
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 2.8146,
+   "trackWidth": 2.4754,
+   "wheels": {
+    "fl": [
+     1.2377,
+     0.4106,
+     1.4073
+    ],
+    "fr": [
+     -1.2377,
+     0.4106,
+     1.4073
+    ],
+    "rl": [
+     1.2377,
+     0.4106,
+     -1.4073
+    ],
+    "rr": [
+     -1.2377,
+     0.4106,
+     -1.4073
+    ]
+   },
+   "extraWheels": {
+    "wheel_rl2": [
+     1.2377,
+     0.4106,
+     -2.5473
+    ],
+    "wheel_rr2": [
+     -1.2377,
+     0.4106,
+     -2.5473
+    ]
+   },
+   "triangles": 1812,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 2,
+    "row": 2
+   }
+  },
+  {
+   "id": "truck-with-trailer",
+   "name": "Truck with trailer",
+   "glb": "/cars/truck-with-trailer.glb",
+   "drivable": false,
+   "dimensions": {
+    "length": 13.421,
+    "width": 3.414,
+    "height": 4.046
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 2.8146,
+   "trackWidth": 2.4754,
+   "wheels": {
+    "fl": [
+     1.2377,
+     0.4106,
+     1.4073
+    ],
+    "fr": [
+     -1.2377,
+     0.4106,
+     1.4073
+    ],
+    "rl": [
+     1.2377,
+     0.4106,
+     -1.4073
+    ],
+    "rr": [
+     -1.2377,
+     0.4106,
+     -1.4073
+    ]
+   },
+   "extraWheels": {
+    "wheel_rl2": [
+     1.2377,
+     0.4106,
+     -2.5473
+    ],
+    "wheel_rl3": [
+     1.2377,
+     0.4106,
+     -8.2673
+    ],
+    "wheel_rl4": [
+     1.2377,
+     0.4106,
+     -9.4073
+    ],
+    "wheel_rl5": [
+     1.2377,
+     0.4106,
+     -10.5573
+    ],
+    "wheel_rr2": [
+     -1.2377,
+     0.4106,
+     -2.5473
+    ],
+    "wheel_rr3": [
+     -1.2377,
+     0.4106,
+     -8.2673
+    ],
+    "wheel_rr4": [
+     -1.2377,
+     0.4106,
+     -9.4073
+    ],
+    "wheel_rr5": [
+     -1.2377,
+     0.4106,
+     -10.5573
+    ]
+   },
+   "triangles": 3300,
+   "roles": [
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 3,
+    "row": 2
+   }
+  },
+  {
+   "id": "van",
+   "name": "Van",
+   "glb": "/cars/van.glb",
+   "drivable": true,
+   "dimensions": {
+    "length": 5.906,
+    "width": 2.814,
+    "height": 2.711
+   },
+   "wheelRadius": 0.4106,
+   "wheelbase": 3.9946,
+   "trackWidth": 1.8754,
+   "wheels": {
+    "fl": [
+     0.9377,
+     0.4106,
+     1.9973
+    ],
+    "fr": [
+     -0.9377,
+     0.4106,
+     1.9973
+    ],
+    "rl": [
+     0.9377,
+     0.4106,
+     -1.9973
+    ],
+    "rr": [
+     -0.9377,
+     0.4106,
+     -1.9973
+    ]
+   },
+   "triangles": 1396,
+   "roles": [
+    "player",
+    "static"
+   ],
+   "credits": null,
+   "sprite": {
+    "col": 4,
+    "row": 2
+   }
+  }
+ ],
+ "sheet": {
+  "url": "/cars/previews.png",
+  "cellW": 256,
+  "cellH": 160,
+  "cols": 8,
+  "rows": 3,
+  "width": 2048,
+  "height": 480,
+  "urlWebp": "/cars/previews.webp"
+ }
+}

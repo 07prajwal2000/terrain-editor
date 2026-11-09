@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monster Mash - map viewer</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #9ec9e8; font: 12px/1.4 system-ui, Segoe UI, sans-serif; }
+  canvas { display: block; }
+  .panel { position: fixed; background: rgba(15, 18, 24, .78); color: #e6eaf0; padding: 8px 10px; border-radius: 6px; }
+  #hud { left: 8px; top: 8px; white-space: pre; font-family: Consolas, monospace; min-width: 330px; pointer-events: none; }
+  #ctl { right: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; width: 190px; }
+  #ctl label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  #ctl button { background: #2a3140; color: inherit; border: 1px solid #4a5568; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+  #ctl button:hover { border-color: #6cb0ff; }
+  #out { white-space: pre-wrap; font-family: Consolas, monospace; font-size: 11px; max-height: 220px; overflow: auto; }
+  #help { left: 8px; bottom: 8px; color: #b8c0cc; }
+</style>
+</head>
+<body>
+<div id="hud" class="panel">loading...</div>
+<div id="ctl" class="panel">
+  <label><input type="checkbox" id="cbWire"> wireframe</label>
+  <label><input type="checkbox" id="cbCol"> collider debug</label>
+  <label><input type="checkbox" id="cbWater" checked> water (lakes + ocean)</label>
+  <label><input type="checkbox" id="cbMesh" checked> road meshes</label>
+  <label><input type="checkbox" id="cbRoads"> road polylines (debug)</label>
+  <label><input type="checkbox" id="cbMarkers"> markers (pins)</label>
+  <button id="bPhys">Physics test (20 balls)</button>
+  <button id="bRay">Raycast vs heightAt</button>
+  <button id="bTop">Top-down view</button>
+  <button id="bJ">Next junction (close)</button>
+  <button id="bJF">Same junction (far)</button>
+  <button id="bRT">Road: top-down close</button>
+  <button id="bRD">Road: driver height</button>
+  <button id="bRF">Road: far</button>
+  <button id="bHome">Reset view</button>
+  <div id="out"></div>
+</div>
+<div id="help" class="panel">Drag: look &middot; WASD move &middot; Q/E down/up &middot; Shift fast &middot; wheel: speed</div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
