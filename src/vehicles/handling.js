@@ -47,6 +47,11 @@
 //   airControl     angular acceleration (rad/s^2) the air-control keys apply about pitch/roll/yaw; scaled by the body inertia, so the torque is physical.
 //   offRoad        >1 shrinks the grip loss of soft surfaces: grip multiplier = 1 - (1 - SURFACE_FRICTION[class]) / offRoad, and rolling resistance on
 //                  soft ground = crr + (1 - SURFACE_FRICTION) * softDrag / offRoad. Sports ~0.6, sedan 1, SUV 1.6, monster 2.4.
+//                  Road surfaces (map gripMul: gravel 0.7, potholes 0.9, worn 0.95) multiply on top: grip = classMult * (1 - (1 - gripMul) / max(offRoad, 1)),
+//                  so offRoad only SOFTENS the road-surface loss (never doubles it; classMult is 1 on every road).
+//   roughResponse  how strongly potholes / gravel / rumble strips jolt this car (0 = glides, 1 = sports car; tuning panel, Tyres). Per wheel in contact Vehicle.js applies
+//                  a vertical impulse = kick * wheelLoad * dt, kick = clamp(2.0 * roughness * roughResponse * min(speed / 80 km/h, 1.5) * noise(x,z), +-0.6)
+//                  (roughness 0..1 from the map's surfaceAt; noise = deterministic, zero-mean, ~1.5 m cells). Soft / heavy vehicles get small values (bus 0.4, monster 0.3).
 //   assist         ARCADE ASSIST, one knob 0..1 (0 = raw physics). It scales: yaw damping (spin-out catching), slide assist (extra lateral grip when sliding
 //                  sideways, off while the handbrake is held), air self-righting, and a bit of anti-roll. See ASSIST below for the gains.
 //   angDamp/linDamp  Rapier damping (linDamp is tiny: it would also slow free-fall). maxAngVel: rad/s clamp.
@@ -71,7 +76,7 @@ export const ARCHETYPES = {
     steerMaxDeg: 33, steerSpeedKmh: 140, steerMinFrac: 0.2, steerGrip: 1.25, steerRate: 5.5, steerReturn: 8, rearSteer: 0,
     suspRest: 0.22, suspTravel: 0.14, suspStiffness: 80, suspCompression: 0.6, suspRelaxation: 0.85, suspMaxForceX: 4,
     gripFront: 1.7, gripRear: 1.8, sideStiff: 1, leanRoll: 0.5, leanPitch: 0.3, tipDeg: 25, tipPitchDeg: 14, antiRoll: 12, downforce: 0.3, airControl: 3.2,
-    offRoad: 0.7, assist: 0.55, angDamp: 0.6, linDamp: 0.01, maxAngVel: 7,
+    offRoad: 0.7, roughResponse: 1.0, assist: 0.55, angDamp: 0.6, linDamp: 0.01, maxAngVel: 7,
   },
   muscle: {
     label: 'Muscle', density: 56, comFrac: 0.26, inertia: { pitch: 1.0, yaw: 0.95, roll: 1.0 },
@@ -80,7 +85,7 @@ export const ARCHETYPES = {
     steerMaxDeg: 31, steerSpeedKmh: 120, steerMinFrac: 0.22, steerGrip: 1.5, steerRate: 4.8, steerReturn: 7, rearSteer: 0,
     suspRest: 0.26, suspTravel: 0.17, suspStiffness: 45, suspCompression: 0.55, suspRelaxation: 0.75, suspMaxForceX: 4,
     gripFront: 1.35, gripRear: 1.05, sideStiff: 0.9, leanRoll: 0.7, leanPitch: 0.5, tipDeg: 25, tipPitchDeg: 18, antiRoll: 6, downforce: 0.05, airControl: 2.8,
-    offRoad: 0.8, assist: 0.3, angDamp: 0.5, linDamp: 0.01, maxAngVel: 7,
+    offRoad: 0.8, roughResponse: 0.9, assist: 0.3, angDamp: 0.5, linDamp: 0.01, maxAngVel: 7,
   },
   sedan: {
     label: 'Sedan', density: 52, comFrac: 0.28, inertia: { pitch: 1.0, yaw: 1.0, roll: 1.0 },
@@ -89,7 +94,7 @@ export const ARCHETYPES = {
     steerMaxDeg: 31, steerSpeedKmh: 110, steerMinFrac: 0.25, steerGrip: 1.2, steerRate: 4.2, steerReturn: 6, rearSteer: 0,
     suspRest: 0.28, suspTravel: 0.18, suspStiffness: 35, suspCompression: 0.55, suspRelaxation: 0.8, suspMaxForceX: 4,
     gripFront: 1.25, gripRear: 1.3, sideStiff: 1, leanRoll: 0.8, leanPitch: 0.5, tipDeg: 22, tipPitchDeg: 12, antiRoll: 8, downforce: 0.05, airControl: 2.6,
-    offRoad: 1.0, assist: 0.6, angDamp: 0.5, linDamp: 0.01, maxAngVel: 6.5,
+    offRoad: 1.0, roughResponse: 0.8, assist: 0.6, angDamp: 0.5, linDamp: 0.01, maxAngVel: 6.5,
   },
   suv: {
     label: 'SUV / pickup', density: 56, comFrac: 0.31, inertia: { pitch: 1.05, yaw: 1.05, roll: 1.1 },
@@ -98,7 +103,7 @@ export const ARCHETYPES = {
     steerMaxDeg: 34, steerSpeedKmh: 100, steerMinFrac: 0.28, steerGrip: 1.15, steerRate: 3.6, steerReturn: 5.5, rearSteer: 0,
     suspRest: 0.4, suspTravel: 0.3, suspStiffness: 25, suspCompression: 0.5, suspRelaxation: 0.75, suspMaxForceX: 5,
     gripFront: 1.2, gripRear: 1.25, sideStiff: 1, leanRoll: 0.9, leanPitch: 0.55, tipDeg: 20, tipPitchDeg: 14, antiRoll: 5, downforce: 0.04, airControl: 2.4,
-    offRoad: 1.7, assist: 0.6, angDamp: 0.5, linDamp: 0.01, maxAngVel: 6,
+    offRoad: 1.7, roughResponse: 0.6, assist: 0.6, angDamp: 0.5, linDamp: 0.01, maxAngVel: 6,
   },
   van: {
     label: 'Van / limo / fire truck', density: 54, comFrac: 0.33, inertia: { pitch: 1.2, yaw: 1.3, roll: 1.15 },
@@ -107,7 +112,7 @@ export const ARCHETYPES = {
     steerMaxDeg: 32, steerSpeedKmh: 90, steerMinFrac: 0.3, steerGrip: 1.1, steerRate: 2.8, steerReturn: 4.5, rearSteer: 0,
     suspRest: 0.36, suspTravel: 0.24, suspStiffness: 20, suspCompression: 0.45, suspRelaxation: 0.7, suspMaxForceX: 5,
     gripFront: 1.0, gripRear: 1.2, sideStiff: 1, leanRoll: 1, leanPitch: 0.6, tipDeg: 18, tipPitchDeg: 10, antiRoll: 3, downforce: 0.02, airControl: 1.8,
-    offRoad: 1.0, assist: 0.7, angDamp: 0.6, linDamp: 0.01, maxAngVel: 5,
+    offRoad: 1.0, roughResponse: 0.55, assist: 0.7, angDamp: 0.6, linDamp: 0.01, maxAngVel: 5,
   },
   bus: {
     label: 'Bus', density: 54, comFrac: 0.33, inertia: { pitch: 1.4, yaw: 1.5, roll: 1.3 },
@@ -116,7 +121,7 @@ export const ARCHETYPES = {
     steerMaxDeg: 31, steerSpeedKmh: 70, steerMinFrac: 0.35, steerGrip: 1.1, steerRate: 2.0, steerReturn: 3.5, rearSteer: 0,
     suspRest: 0.46, suspTravel: 0.3, suspStiffness: 13, suspCompression: 0.4, suspRelaxation: 0.6, suspMaxForceX: 5,
     gripFront: 1.0, gripRear: 1.25, sideStiff: 1, leanRoll: 1, leanPitch: 0.6, tipDeg: 16, tipPitchDeg: 8, antiRoll: 1.5, downforce: 0.02, airControl: 1.0,
-    offRoad: 0.9, assist: 0.8, angDamp: 0.8, linDamp: 0.01, maxAngVel: 3.5,
+    offRoad: 0.9, roughResponse: 0.4, assist: 0.8, angDamp: 0.8, linDamp: 0.01, maxAngVel: 3.5,
   },
   monster: {
     label: 'Monster truck', density: 55, comFrac: 0.39, inertia: { pitch: 1.1, yaw: 1.1, roll: 1.1 },
@@ -125,7 +130,7 @@ export const ARCHETYPES = {
     steerMaxDeg: 25, steerSpeedKmh: 90, steerMinFrac: 0.3, steerGrip: 0.9, steerRate: 2.8, steerReturn: 4, rearSteer: 0.12,
     suspRest: 0.9, suspTravel: 0.62, suspStiffness: 13, suspCompression: 0.4, suspRelaxation: 0.55, suspMaxForceX: 6,
     gripFront: 1.2, gripRear: 1.2, sideStiff: 1, leanRoll: 0.85, leanPitch: 0.6, tipDeg: 30, tipPitchDeg: 12, antiRoll: 2, downforce: 0, airControl: 2.2,
-    offRoad: 2.6, assist: 0.55, angDamp: 0.5, linDamp: 0.01, maxAngVel: 5,
+    offRoad: 2.6, roughResponse: 0.3, assist: 0.55, angDamp: 0.5, linDamp: 0.01, maxAngVel: 5,
   },
 };
 
@@ -158,7 +163,7 @@ export const TUNABLE = {
   steerMaxDeg: [10, 50, 0.5], steerSpeedKmh: [20, 250, 1], steerMinFrac: [0.05, 1, 0.01], steerGrip: [0.6, 2, 0.01], steerRate: [0.5, 12, 0.1], steerReturn: [0.5, 14, 0.1], rearSteer: [0, 1, 0.01],
   suspRest: [0.08, 1.2, 0.01], suspTravel: [0.03, 1, 0.01], suspStiffness: [4, 150, 0.5], suspCompression: [0.1, 1.5, 0.01], suspRelaxation: [0.1, 1.5, 0.01], suspMaxForceX: [1.5, 10, 0.1],
   gripFront: [0.3, 3.5, 0.01], gripRear: [0.3, 3.5, 0.01], sideStiff: [0.2, 3, 0.01], handbrakeSlip: [0.1, 1, 0.01],
-  antiRoll: [0, 40, 0.5], tipDeg: [5, 90, 1], tipPitchDeg: [3, 90, 1], leanRoll: [0, 1.5, 0.01], leanPitch: [0, 1.5, 0.01], downforce: [0, 4, 0.01], airControl: [0, 8, 0.1], offRoad: [0.3, 4, 0.05], assist: [0, 1, 0.01],
+  antiRoll: [0, 40, 0.5], tipDeg: [5, 90, 1], tipPitchDeg: [3, 90, 1], leanRoll: [0, 1.5, 0.01], leanPitch: [0, 1.5, 0.01], downforce: [0, 4, 0.01], airControl: [0, 8, 0.1], offRoad: [0.3, 4, 0.05], roughResponse: [0, 2, 0.01], assist: [0, 1, 0.01],
   angDamp: [0, 4, 0.05], maxAngVel: [1, 12, 0.1],
 };
 

@@ -7,13 +7,57 @@
 // THREE / RAPIER are injected so the game owns the single instance of each (and so this runs in Node).
 //
 // OPTIONAL junctions.json in the map folder (overrides for automatically detected junctions):
-//   [ { "x": 250.0, "z": 300.0, "style": "junction" | "roundabout" | "none", "radius": 20 } ]
+//   [ { "x": 250.0, "z": 300.0, "style": "junction" | "roundabout" | "signals" | "none", "radius": 20 } ]
 //   Each entry is matched to the nearest detected junction within 15 m (unmatched entries are ignored).
-//   style  = what to build there ('none' = plain overlapping roads, no patch/roundabout/terrain stamp);
-//   radius = optional: roundabout OUTER radius in metres (min 12), or junction-patch radius (min 10).
-// Without the file: 2-3 arms (T / Y / L) -> 'junction' patch, 4+ arms or a crossing -> 'roundabout'.
+//   style  = what to build there ('none' = plain overlapping roads, no patch/roundabout/terrain stamp; 'signals' = junction patch with
+//            traffic signals, zebra crossings on every arm, corner pavements on city arms - see roadSignals.js);
+//   radius = optional: roundabout OUTER radius in metres (min 12), or junction/signals-patch radius (min 10).
+// JUNCTION STYLE RULES (precedence: junctions.json > markers > defaults):
+//   defaults: 2-3 arms (T / Y / L) -> 'junction' patch, 4+ arms or a crossing -> 'roundabout' (country roads);
+//             a junction with 3+ arms where ANY arm's road segment has type 'city' -> 'signals' (never a roundabout);
+//             ANY arm of type 'highway' -> plain 'junction' (checked first: no roundabout, no signals).
+//   markers:  a marker within 15 m of a detected junction with tag 'roundabout' | 'signals' | 'junction_plain' (= plain junction patch) forces that style
+//             (the nearest such marker wins).
+//   map.junctions[i].source = 'default' | 'marker' | 'json' tells which rule decided.
 // Roads that cross over each other (either is a bridge there, or heights differ by > 4 m) make no junction.
-import { polyOf, detectJunctions, stampJunctions, makeRoadQuery, buildRoads } from './roads.js';
+//
+// ROAD NODE METADATA (roads.json points, all optional, see roadMeta.js for the full definition; absent = default):
+//   point: { nx, nz, x, y, z, bridge, type?, oneway?, edgeL?, edgeR?, surface?, features?, signs? }
+//     type    'country' (default) | 'city' | 'highway'        city: darker smooth asphalt, kerbs + footpaths (2.65 m each side, roadCity.js), terrain flattened
+//                                                             across the corridor, zebra/signals junctions; highway: lane markings, shoulders, median barrier
+//     oneway  false (default) | true                          direction = point order; no centre line, arrows every ~40 m
+//     edgeL / edgeR  'none' (default) | 'fence' | 'guardrail' | 'barrier' | 'lamps'   left / right looking forward along the point order
+//     surface 'smooth' (default) | 'worn' | 'potholes' | 'gravel'   (shader look + surfaceAt roughness/grip; potholes are NOT geometry)
+//     signs   'auto' (default) | 'off'                        automatic warning signs on this segment
+//     features string[] of 'crosswalk' (zebra + 2 pedestrian signs; city: dropped kerb) | 'bump' | 'rumble' | 'roadworks'   at the point itself
+//   Segment attributes (type, oneway, edgeL, edgeR, surface, signs) apply from a point to the NEXT point (like bridge); the last
+//   point's are ignored. Loaded roads keep them: map.roads[i].points[j].type etc. (validated, defaults filled in, features sorted).
+// map.json (optional): driveSide 'right' (default) | 'left', signStyle 'us' (default, yellow diamonds) | 'eu' (red-bordered triangles);
+//   exposed as map.info.driveSide / map.info.signStyle.
+// surfaceAt(x,z) additionally returns { roadSurface: string|null, roughness: 0..1, gripMul } (roadSurface = the road surface name when on
+//   asphalt/gravel road, else null; roughness 0 smooth..1 very rough, also raised inside rumble-strip zones; gripMul multiplies tyre grip:
+//   gravel 0.7, potholes 0.9, worn 0.95). classId stays 6 on any road surface. On a city FOOTPATH (incl. corner blocks) it returns
+//   classId 7 (city), roadSurface 'footpath', roughness 0, gripMul 1.
+// City edge items: lamps / fences / guardrails / barriers on a city segment stand FOOT_SHIFT (2.65 m = kerb 0.15 + footpath 2.5) further out than on country roads,
+//   i.e. just outside the footpath; they stay user-controlled through edgeL / edgeR.
+// AUTO BRIDGES OVER WATER (roadBridges.js; loader option autoBridge, default true; autoBridge:false = the old behaviour, roads drape on the terrain / under the water):
+//   a non-bridge road stretch whose surface (centreline or either edge) is below the water surface + 0.3 m (lake/river = waterLevelAt, ocean = seaLevelMeters) is turned into
+//   a bridge: deck y = max(road y, water + 1.5 m) over the wet stretch (tiny wet spots < 4 m are ignored unless > 0.5 m under water, wet stretches < 20 m apart merge),
+//   plus approach ramps (<= 7% grade, smooth) on both sides that end exactly at the dry road height. The whole span is an ordinary bridge (deck slab, rails, pillars, Rapier
+//   trimesh; no edges / lamps / features / warning signs / footpaths / terrain stamping / surfaceAt road). An editor-marked bridge over water keeps its flag and its deck
+//   is raised the same way when it is lower than water + 1.5 m. JUNCTIONS: a span (ramps included) that comes within a junction's footprint (stamped extent + blend) is NOT bridged
+//   (road stays on the terrain, listed in roadDetail.autoBridgeSkipped). Result: roadDetail.autoBridges = [{ roadId, s0, s1, deckY0, deckY1, maxY, reason: 'lake'|'ocean', raised, x0,z0,x1,z1, path[x,z,...] }]
+//   (s = arc length in metres along getPoints(1)), also road.autoBridges per road; samples carry bridge:true + auto:true, control points inside a span carry auto:true.
+// map.update(dt)       advance the signal-light clock (seconds); call once per frame (signals junctions only animate when you do).
+// map.signalState(group) -> 'green' | 'amber' | 'red' for phase group 0 / 1 at the current clock. map.junctions[i] = { x, z, y, style, radius, arms[{roadId,angle,width,type}],
+//   source, signals[{x,y,z,roadId,group,fx,fz}] } (signals: posts of a 'signals' junction; group = phase group, fx/fz = the way the head faces).
+// map.roadDetail = { signs[], edgePieces[], lamps[], features[], drawCalls, counts{} } describes what the road builder generated
+//   (additive: footpaths[], cornerBlocks[], zebras[], crosswalkSigns[], signals[]; counts footpathPieces/cornerBlocks/zebras/signalPosts/...).
+// map.parts.roadEdges / roadProps / roadSigns are the toggleable groups (visibility survives rebuilds); colliders are not removed by toggling.
+import { polyOf, detectJunctions, stampJunctions, makeRoadQuery, buildRoads, cityRuns, stampCityCorridors } from './roads.js';
+import { planAutoBridges } from './roadBridges.js';
+import { signalState } from './roadSignals.js';
+import { parseNodeMeta, parseMapMeta, SURFACE_PROPS, JUNCTION_STYLES, MARKER_JUNCTION_TAGS, CITY, FOOT_SHIFT } from './roadMeta.js';
 
 export const SURFACE_NAMES = Object.freeze(['grass', 'forest', 'dirt', 'sand', 'rock', 'snow', 'road', 'city']);
 // Indexed by classId. Vehicles read this per wheel via surfaceAt(); the terrain collider itself uses friction 1.
@@ -87,28 +131,40 @@ export async function decodePNG(buf) {
 // Roads: uniform Catmull-Rom through the control points, end points duplicated as phantom neighbours,
 // evaluated in the x,z plane (exactly the editor's sampleRoad). Parameter t of sample(t) is 0..1 over the
 // whole road, uniform in CONTROL-POINT index (not arc length); getPoints() is ~arc-length spaced.
-// Sample = { x, y, z, bridge, seg, tx, tz }:
+// Sample = { x, y, z, bridge, auto, seg, tx, tz, u }:
 //   y      = terrain height at (x,z) on normal segments (roads are baked into the terrain by the editor);
-//            on bridge segments the straight line between the two control-point heights (deck line).
-//   bridge = the segment starting at control point `seg` is a bridge.
+//            on bridge segments the straight line between the two control-point heights (deck line); on auto-bridged spans the planned deck.
+//   bridge = the segment starting at control point `seg` is a bridge (editor flag) OR the sample lies in an auto-bridged span.
+//   auto   = the sample is part of an auto bridge over water (roadBridges.js); road.autoBridges lists the spans, point.auto marks control points inside one.
 //   tx,tz  = unit horizontal tangent.
 // ------------------------------------------------------------------------------------------------
 function makeRoad(r, heightAt) {
-  const P = r.points.map((p) => ({ x: p.x, y: p.y, z: p.z, bridge: !!p.bridge }));
+  const P = r.points.map((p) => ({ x: p.x, y: p.y, z: p.z, bridge: !!p.bridge, ...parseNodeMeta(p) }));
   const n = P.length;
   const cr = (a, b, c, d, t) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t);
   const dcr = (a, b, c, d, t) => 0.5 * ((-a + c) + 2 * (2 * a - 5 * b + 4 * c - d) * t + 3 * (-a + 3 * b - 3 * c + d) * t * t);
+  let deck = null; // auto-bridge deck table from roadBridges.js: { u[], y[], mod[], auto[] } per getPoints(1) sample (u = seg + f); mod = deck overrides y + bridge
+  const deckAt = (u) => { // largest sample index k with deck.u[k] <= u
+    let lo = 0, hi = deck.u.length - 1;
+    while (lo < hi) { const m = (lo + hi + 1) >> 1; if (deck.u[m] <= u + 1e-9) lo = m; else hi = m - 1; }
+    return lo;
+  };
   function segPoint(i, f) {
     const p0 = P[Math.max(i - 1, 0)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(i + 2, n - 1)];
     const x = cr(p0.x, p1.x, p2.x, p3.x, f), z = cr(p0.z, p1.z, p2.z, p3.z, f);
     let tx = dcr(p0.x, p1.x, p2.x, p3.x, f), tz = dcr(p0.z, p1.z, p2.z, p3.z, f);
     const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l;
-    const bridge = p1.bridge;
-    return { x, y: bridge ? p1.y + (p2.y - p1.y) * f : heightAt(x, z), z, bridge, seg: i, tx, tz };
+    let bridge = p1.bridge, auto = false, y = bridge ? p1.y + (p2.y - p1.y) * f : heightAt(x, z);
+    if (deck) {
+      const k = deckAt(i + f);
+      if (deck.mod[k]) { const k2 = Math.min(k + 1, deck.u.length - 1), d = deck.u[k2] - deck.u[k], t = d > 0 ? (i + f - deck.u[k]) / d : 0; bridge = true; auto = !!deck.auto[k]; y = deck.y[k] + (deck.y[k2] - deck.y[k]) * t; }
+    }
+    return { x, y, z, bridge, auto, seg: i, tx, tz, u: i + f };
   }
-  const single = () => ({ x: P[0].x, y: P[0].y, z: P[0].z, bridge: false, seg: 0, tx: 1, tz: 0 });
+  const single = () => ({ x: P[0].x, y: P[0].y, z: P[0].z, bridge: false, auto: false, seg: 0, tx: 1, tz: 0, u: 0 });
   return {
-    id: r.id, width: r.widthMeters, points: P,
+    id: r.id, width: r.widthMeters, points: P, autoBridges: [],
+    setDeck(d) { deck = d; },
     sample(t) {
       if (n === 0) return null;
       if (n === 1) return single();
@@ -217,7 +273,7 @@ normal = normalize(normal + 0.025 * vec3(sin(vWWP.x * 0.21 + uTime * 0.8) + sin(
 //       markers?:   optional markers.json object { version, markers: [...] } (see MARKERS below)
 //     }
 //     The arrays are COPIED, so the caller may keep editing its own buffers.
-//   opts: { THREE, RAPIER, physicsWorld, physics = true, physicsResolution = 512, chunkSize = 128 }
+//   opts: { THREE, RAPIER, physicsWorld, physics = true, physicsResolution = 512, chunkSize = 128, autoBridge = true }
 //     physics:false ignores physicsWorld (no Rapier heightfield / bridge colliders) - for previews.
 //
 // MARKERS (markers.json, optional; if absent map.markers = []): pins placed in the editor, to be looked up by name/tag.
@@ -320,10 +376,10 @@ function buildMap(data, opts, T) {
   for (const k of ['splat0', 'splat1']) need(data[k] instanceof Uint8Array && data[k].length === N * N * 4, `${k} must be a Uint8Array of N*N*4`);
   need(data.water instanceof Uint16Array && data.water.length === N * N, `water must be a Uint16Array of N*N`);
   const jOverrides = data.junctions || [];
-  need(Array.isArray(jOverrides) && jOverrides.every((o) => Number.isFinite(o.x) && Number.isFinite(o.z) && ['junction', 'roundabout', 'none'].includes(o.style)),
-    'junctions.json must be an array of {x, z, style: junction|roundabout|none, radius?}');
+  need(Array.isArray(jOverrides) && jOverrides.every((o) => Number.isFinite(o.x) && Number.isFinite(o.z) && JUNCTION_STYLES.includes(o.style)),
+    'junctions.json must be an array of {x, z, style: junction|roundabout|signals|none, radius?}');
   validateRoads(need, data.roads);
-  const cell = W / N;
+  const cell = W / N, mapMeta = parseMapMeta(mj);
   let SEA = mj.seaLevelMeters;
   let rj = data.roads, roadsJson = JSON.stringify(rj);
   const markerList = (o) => { // markers.json object -> validated array of raw markers
@@ -355,19 +411,61 @@ function buildMap(data, opts, T) {
     return out.set(-(heightAt(x + e, z) - heightAt(x - e, z)) / (2 * e), 1, -(heightAt(x, z + e) - heightAt(x, z - e)) / (2 * e)).normalize();
   };
 
+  // ---- lake/river water: surface grid (metres), NaN = none. Dry vertices next to wet ones get the mean of the wet
+  //      neighbours so quads along the shore have defined corners (they end up hidden under the terrain). ----
+  const wf = new Float32Array(N * N).fill(NaN);
+  function recomputeWf(x0, y0, x1, y1) { // pixel rect [x0,x1)x[y0,y1) plus a 1 px border (dry pixels average their wet neighbours)
+    x0 = Math.max(0, x0 - 1); y0 = Math.max(0, y0 - 1); x1 = Math.min(N, x1 + 1); y1 = Math.min(N, y1 + 1);
+    for (let j = y0; j < y1; j++) for (let i = x0; i < x1; i++) { const k = j * N + i; if (wraw[k] !== 0) wf[k] = (wraw[k] - 1) * wk; }
+    for (let j = y0; j < y1; j++) for (let i = x0; i < x1; i++) {
+      if (wraw[j * N + i] !== 0) continue;
+      let s = 0, c = 0;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        const a = i + di, b = j + dj;
+        if (a < 0 || b < 0 || a >= N || b >= N) continue;
+        const k = b * N + a; if (wraw[k] !== 0) { s += wf[k]; c++; }
+      }
+      wf[j * N + i] = c ? s / c : NaN;
+    }
+  }
+  recomputeWf(0, 0, N, N);
+  const lakeAt = (x, z) => { // lake/river surface level at (x,z) if any of the 4 surrounding samples is wet (the mesh-cell rule), else null (may be below the terrain there)
+    let fx = x * inv - 0.5, fz = z * inv - 0.5;
+    fx = fx < 0 ? 0 : fx > N1 ? N1 : fx; fz = fz < 0 ? 0 : fz > N1 ? N1 : fz;
+    const i = Math.min(fx | 0, N - 2), j = Math.min(fz | 0, N - 2), tx = fx - i, tz = fz - j, o = j * N + i;
+    if (!(wraw[o] | wraw[o + 1] | wraw[o + N] | wraw[o + N + 1])) return null;
+    const a = wf[o] + (wf[o + 1] - wf[o]) * tx, b = wf[o + N] + (wf[o + N + 1] - wf[o + N]) * tx;
+    return a + (b - a) * tz;
+  };
+  const waterLevelAt = (x, z) => {
+    const h = heightAt(x, z), L = lakeAt(x, z), lake = L !== null && L > h ? L : null;
+    const ocean = h < SEA ? SEA : null;
+    return lake === null ? ocean : ocean === null ? lake : Math.max(lake, ocean);
+  };
+  // water SURFACE at (x,z) whether or not the terrain is below it (road auto-bridging compares the road with this): { level, kind } (the ocean plane covers the whole map)
+  const waterSurfaceAt = (x, z) => { const L = lakeAt(x, z); return L !== null && L > SEA ? { level: L, kind: 'lake' } : { level: SEA, kind: 'ocean' }; };
+  const isUnderwater = (x, z, y) => { const L = waterLevelAt(x, z); return L !== null && y < L; };
   // ---- roads: detect junctions from the raw heights, then stamp flat discs into the height grid BEFORE anything (render mesh,
   //      collider, road meshes) reads it, so heightAt / mesh / collider all agree. Re-runnable (updateRegion). ----
-  let roads, junctions, roadAt, roadBoxes;
+  let roads, junctions, roadAt, roadBoxes, cityList = [], autoInfo = { spans: [], skipped: [] };
+  const markerPts = () => markerRaw.map((m) => ({ x: Number.isFinite(m.x) ? m.x : m.nx * W, z: Number.isFinite(m.z) ? m.z : m.nz * W, tags: Array.isArray(m.tags) ? m.tags : [] }));
+  const junctionMarkersJson = () => JSON.stringify(markerPts().filter((m) => Object.keys(MARKER_JUNCTION_TAGS).some((t) => m.tags.includes(t))).map((m) => [m.x, m.z, m.tags.filter((t) => t in MARKER_JUNCTION_TAGS)]));
   function prepRoads() {
     Hm.set(Hbase);
     roads = rj.roads.map((r) => makeRoad(r, heightAt));
-    junctions = detectJunctions(roads, heightAt, jOverrides);
+    junctions = detectJunctions(roads, heightAt, jOverrides, markerPts());
+    // bridges over water (roadBridges.js): after junction detection (their footprints are avoided), before the city / junction stamping and every polyOf consumer
+    autoInfo = opts.autoBridge === false ? { spans: [], skipped: [] } : planAutoBridges({ roads, junctions, heightAt, waterAt: waterSurfaceAt });
+    // city corridors first (flatten carriageway + footpaths to the smoothed original profile), then the junction discs on top of that
+    cityList = cityRuns(roads);
+    stampCityCorridors(Hm, N, cell, cityList);
+    for (const j of junctions) j.y = heightAt(j.x, j.z);
     stampJunctions(Hm, N, cell, junctions);
     for (const j of junctions) { j.y = heightAt(j.x, j.z); }
     roadAt = makeRoadQuery(roads, junctions);
     // metre boxes {x0,z0,x1,z1} around every road / junction: a height edit inside one means the road meshes must be rebuilt
     roadBoxes = roads.map((r) => {
-      const P = polyOf(r), pad = r.width + 2; let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+      const P = polyOf(r), pad = r.width + 2 + (r.points.some((p) => p.type === 'city') ? FOOT_SHIFT + 1.5 * cell + CITY.BLEND : 0); let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
       for (let i = 0; i < P.n; i++) { x0 = Math.min(x0, P.x[i]); x1 = Math.max(x1, P.x[i]); z0 = Math.min(z0, P.z[i]); z1 = Math.max(z1, P.z[i]); }
       return { x0: x0 - pad, z0: z0 - pad, x1: x1 + pad, z1: z1 + pad };
     }).concat(junctions.map((j) => { const r = j._extent + j._blend + 2; return { x0: j.x - r, z0: j.z - r, x1: j.x + r, z1: j.z + r }; }));
@@ -388,47 +486,16 @@ function buildMap(data, opts, T) {
     }
     // Road is decided analytically (the splat road class is a blurry gravel halo, not the road): on the road -> pure class 6,
     // off the road -> the strongest NON-road splat class.
-    if (roadAt(x, z)) { weights.fill(0); weights[6] = 1; return { classId: 6, weights }; }
+    const rs = roadAt.surface(x, z);
+    if (rs !== null) { weights.fill(0); weights[6] = 1; return { classId: 6, weights, roadSurface: rs, roughness: roadAt.roughness(x, z, rs), gripMul: SURFACE_PROPS[rs].gripMul }; }
+    if (roadAt.footpath(x, z)) { weights.fill(0); weights[7] = 1; return { classId: 7, weights, roadSurface: 'footpath', roughness: 0, gripMul: 1 }; } // city footpath / corner block
     const rw = weights[6]; weights[6] = 0;
     if (rw >= 0.999) weights[0] = 1; // splat said pure road but the road mesh is not here (e.g. roundabout island): call it grass
     else if (rw > 0) { const k = 1 / (1 - rw); for (let c = 0; c < 8; c++) weights[c] *= k; }
     for (let c = 1; c < 8; c++) if (weights[c] > weights[classId]) classId = c;
-    return { classId, weights };
+    return { classId, weights, roadSurface: null, roughness: 0, gripMul: 1 };
   };
 
-  // ---- lake/river water: surface grid (metres), NaN = none. Dry vertices next to wet ones get the mean of the wet
-  //      neighbours so quads along the shore have defined corners (they end up hidden under the terrain). ----
-  const wf = new Float32Array(N * N).fill(NaN);
-  function recomputeWf(x0, y0, x1, y1) { // pixel rect [x0,x1)x[y0,y1) plus a 1 px border (dry pixels average their wet neighbours)
-    x0 = Math.max(0, x0 - 1); y0 = Math.max(0, y0 - 1); x1 = Math.min(N, x1 + 1); y1 = Math.min(N, y1 + 1);
-    for (let j = y0; j < y1; j++) for (let i = x0; i < x1; i++) { const k = j * N + i; if (wraw[k] !== 0) wf[k] = (wraw[k] - 1) * wk; }
-    for (let j = y0; j < y1; j++) for (let i = x0; i < x1; i++) {
-      if (wraw[j * N + i] !== 0) continue;
-      let s = 0, c = 0;
-      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
-        const a = i + di, b = j + dj;
-        if (a < 0 || b < 0 || a >= N || b >= N) continue;
-        const k = b * N + a; if (wraw[k] !== 0) { s += wf[k]; c++; }
-      }
-      wf[j * N + i] = c ? s / c : NaN;
-    }
-  }
-  recomputeWf(0, 0, N, N);
-  const waterLevelAt = (x, z) => {
-    const h = heightAt(x, z);
-    let lake = null;
-    let fx = x * inv - 0.5, fz = z * inv - 0.5;
-    fx = fx < 0 ? 0 : fx > N1 ? N1 : fx; fz = fz < 0 ? 0 : fz > N1 ? N1 : fz;
-    const i = Math.min(fx | 0, N - 2), j = Math.min(fz | 0, N - 2), tx = fx - i, tz = fz - j, o = j * N + i;
-    if (wraw[o] | wraw[o + 1] | wraw[o + N] | wraw[o + N + 1]) { // same "any wet corner" rule as the mesh cells
-      const a = wf[o] + (wf[o + 1] - wf[o]) * tx, b = wf[o + N] + (wf[o + N + 1] - wf[o + N]) * tx;
-      const L = a + (b - a) * tz;
-      if (L > h) lake = L;
-    }
-    const ocean = h < SEA ? SEA : null;
-    return lake === null ? ocean : ocean === null ? lake : Math.max(lake, ocean);
-  };
-  const isUnderwater = (x, z, y) => { const L = waterLevelAt(x, z); return L !== null && y < L; };
   lap('prep');
 
   // ---- render mesh: chunked, shared material, one shared index buffer per chunk shape ----
@@ -563,24 +630,32 @@ function buildMap(data, opts, T) {
   let roadsBuilt = null;
   function buildRoadMeshes() {
     const old = roadsBuilt;
-    roadsBuilt = buildRoads({ THREE, RAPIER, physicsWorld, roads, junctions, heightAt });
-    if (old) { roadsBuilt.group.visible = old.group.visible; old.group.removeFromParent(); old.dispose(physicsWorld); }
+    roadsBuilt = buildRoads({ THREE, RAPIER, physicsWorld, roads, junctions, heightAt, driveSide: mapMeta.driveSide, signStyle: mapMeta.signStyle });
+    if (old) {
+      roadsBuilt.group.visible = old.group.visible; roadsBuilt.edgesGroup.visible = old.edgesGroup.visible; roadsBuilt.propsGroup.visible = old.propsGroup.visible; roadsBuilt.signsGroup.visible = old.signsGroup.visible;
+      old.group.removeFromParent(); old.dispose(physicsWorld);
+    }
     group.add(roadsBuilt.group);
     map.parts.roadMesh = roadsBuilt.roadMesh; map.parts.roadGroup = roadsBuilt.group;
+    map.parts.roadEdges = roadsBuilt.edgesGroup; map.parts.roadProps = roadsBuilt.propsGroup; map.parts.roadSigns = roadsBuilt.signsGroup; map.roadDetail = roadsBuilt.detail; roadsBuilt.detail.autoBridges = autoInfo.spans; roadsBuilt.detail.autoBridgeSkipped = autoInfo.skipped; roadsBuilt.detail.counts.autoBridges = autoInfo.spans.length;
+    roadAt.setFootprints(roadsBuilt.footprints); roadsBuilt.setTime(signalTime); map.junctions = publicJunctions(); // signals[] exists only after the build
   }
-  const publicJunctions = () => junctions.map((j) => ({ x: j.x, z: j.z, y: j.y, style: j.style, radius: j.radius, arms: j.arms }));
-  let disposed = false, timer = null, pendingRoads = false;
+  const publicJunctions = () => junctions.map((j) => ({ x: j.x, z: j.z, y: j.y, style: j.style, radius: j.radius, arms: j.arms, source: j.source, signals: j._signals || [] }));
+  let disposed = false, timer = null, pendingRoads = false, signalTime = 0;
   const map = {
     group, heightAt, normalAt, surfaceAt, waterLevelAt, isUnderwater, roads, junctions: publicJunctions(),
     info: {
       worldSize: W, maxHeight: MAXH, seaLevel: SEA, seaLevelNormalized: mj.seaLevel, N, cellSize: cell,
-      classes: mj.classes, chunks: nCh * nCh, chunkCells: cs, loadMs: T,
+      classes: mj.classes, chunks: nCh * nCh, chunkCells: cs, loadMs: T, driveSide: mapMeta.driveSide, signStyle: mapMeta.signStyle,
     },
+    roadDetail: null,
     SURFACE_FRICTION,
     parts: { terrain, lakes, ocean, material, waterMaterial: waterMat, roadMesh: null, roadGroup: null },
     physics,
     markers: [], getMarkers, markerByName,
     updateRegion, flush, setSeaLevel,
+    update(dt) { signalTime += dt; if (roadsBuilt) roadsBuilt.setTime(signalTime); }, // signal lights clock (seconds), call once per frame
+    signalState: (group) => signalState(group, signalTime),
     dispose() {
       if (disposed) return; disposed = true; clearTimeout(timer);
       if (physics && physicsWorld) physicsWorld.removeCollider(physics.collider, false);
@@ -620,12 +695,21 @@ function buildMap(data, opts, T) {
     }
     return changed;
   }
-  function setSeaLevel(m) { SEA = m; ocean.position.y = m; map.info.seaLevel = m; map.info.seaLevelNormalized = m / MAXH; }
+  function setSeaLevel(m) {
+    SEA = m; ocean.position.y = m; map.info.seaLevel = m; map.info.seaLevelNormalized = m / MAXH;
+    pendingRoads = true; clearTimeout(timer); timer = setTimeout(runRoads, 300); if (timer && timer.unref) timer.unref(); // the ocean decides which road stretches are bridged
+  }
   function runRoads() { // the debounced part: re-detect junctions, restamp, refresh the terrain under old+new stamps, rebuild meshes
     clearTimeout(timer); timer = null; if (!pendingRoads || disposed) return; pendingRoads = false;
-    const oldJ = junctions.map((j) => [j.x, j.z, j._extent + j._blend + 2]);
+    // terrain to refresh = old + new junction stamps and city corridors (a flooded city road is no longer flattened); city runs as [cx, cz, radius] circles
+    const stamped = () => junctions.map((j) => [j.x, j.z, j._extent + j._blend + 2]).concat(cityList.map((r) => {
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      for (let i = 0; i < r.n; i++) { x0 = Math.min(x0, r.x[i]); x1 = Math.max(x1, r.x[i]); z0 = Math.min(z0, r.z[i]); z1 = Math.max(z1, r.z[i]); }
+      return [(x0 + x1) / 2, (z0 + z1) / 2, Math.hypot(x1 - x0, z1 - z0) / 2 + r.hw + FOOT_SHIFT + CITY.BLEND + 2 * cell];
+    }));
+    const oldJ = stamped();
     prepRoads();
-    const newJ = junctions.map((j) => [j.x, j.z, j._extent + j._blend + 2]);
+    const newJ = stamped();
     let x0 = N, y0 = N, x1 = 0, y1 = 0;
     for (const [x, z, r] of oldJ.concat(newJ)) {
       x0 = Math.min(x0, Math.floor((x - r) / cell)); x1 = Math.max(x1, Math.ceil((x + r) / cell));
@@ -655,7 +739,11 @@ function buildMap(data, opts, T) {
     }
     if (has && d.water) {
       need(d.water instanceof Uint16Array && d.water.length === N * N, 'updateRegion: water must be a Uint16Array of N*N');
-      if (copyRows(wraw, d.water, x0, y0, x1, y1, 1)) { res.water = true; recomputeWf(x0, y0, x1, y1); buildLakes(); map.parts.lakes = lakes; }
+      if (copyRows(wraw, d.water, x0, y0, x1, y1, 1)) {
+        res.water = true; recomputeWf(x0, y0, x1, y1); buildLakes(); map.parts.lakes = lakes;
+        const e = 1.5 * cell; // flooding / draining next to a road changes its auto bridges (wf is smoothed over 1 px)
+        if (roadBoxes.some((b) => b.x0 < x1 * cell + e && b.x1 > x0 * cell - e && b.z0 < y1 * cell + e && b.z1 > y0 * cell - e)) res.roads = true;
+      }
     }
     if (d.roads) {
       const j = JSON.stringify(d.roads);
@@ -663,10 +751,14 @@ function buildMap(data, opts, T) {
     }
     if (d.markers) {
       const j = JSON.stringify(markerList(d.markers));
-      if (j !== markersJson) { markersJson = j; markerRaw = markerList(d.markers); res.markers = true; buildMarkers(); }
+      if (j !== markersJson) {
+        const before = junctionMarkersJson(); markersJson = j; markerRaw = markerList(d.markers); res.markers = true; buildMarkers();
+        if (junctionMarkersJson() !== before) res.roads = true; // roundabout / signals / junction_plain markers change the junction styles
+      }
     }
     if (res.height) {
       for (let y = y0; y < y1; y++) Hm.set(Hbase.subarray(y * N + x0, y * N + x1), y * N + x0);
+      stampCityCorridors(Hm, N, cell, cityList, { x0, y0, x1, y1 });
       stampJunctions(Hm, N, cell, junctions, { x0, y0, x1, y1 }); // restricted to the rect: same result as a full restamp there
       updateTerrain(x0, y0, x1, y1); refreshMarkerHeights();
       const mx0 = x0 * cell, mx1 = x1 * cell, mz0 = y0 * cell, mz1 = y1 * cell;

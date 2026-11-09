@@ -5,7 +5,7 @@
 <title>Terrain Editor (Vite)</title>
 <!--
 =====================================================================================
- TERRAIN / BIOME MAP EDITOR  -  single file, no dependencies, works offline (file://)
+ TERRAIN / BIOME MAP EDITOR  -  Vite module app, served over HTTP (three.js powers the 3D preview)
  EXPORT FORMAT + COORDINATE CONVENTION  (the game loader is written against this)
 =====================================================================================
  All grids are N x N (N = 512 / 1024 / 2048, written to map.json), row-major,
@@ -16,7 +16,7 @@
    - Pixel (px, py): px = column (0 = left), py = row (0 = top). ORIGIN = TOP-LEFT
      corner of the image = world (x=0, z=0).
    - World +X = increasing px (to the right / "east").
-   - World +Z = increasing py (DOWN the image / "south").   (world z = py/N * worldSize)
+   - World +Z = increasing py (DOWN the image / "south").   (sample z = (py+0.5)*cell, see below)
    - World +Y = up; y metres = normalized height * maxHeightMeters.
    - Pixel (i,j) covers world x in [i*cell,(i+1)*cell], z in [j*cell,(j+1)*cell] with
      cell = worldSizeMeters / N; its sample point is the pixel CENTRE (i+0.5, j+0.5)*cell.
@@ -41,12 +41,23 @@
                      A pixel only counts as water where surface > terrain height (otherwise exported 0).
                      water mask = (value != 0). OCEAN IS NOT IN THIS FILE: ocean = every pixel whose
                      terrain height < seaLevel (see map.json seaLevel / seaLevelMeters), surface at seaLevel.
-   roads.json        { roads: [ { id, widthMeters, points: [ { nx, nz, x, y, z, bridge } ] } ] }
+   roads.json        { formatVersion, note, roads: [ { id, widthMeters, points: [ { nx, nz, x, y, z, bridge } ] } ] }
                      nx,nz = normalized 0..1 (edge-to-edge, see above); x,z = world metres
                      (x = nx*worldSize, z = nz*worldSize); y = terrain height in metres sampled there.
                      bridge=true on a point means the segment from that point to the NEXT point is
                      elevated (bridge). Path curve = uniform Catmull-Rom spline through the points
                      (end points duplicated as phantom neighbours), evaluated in the x,z plane.
+                     OPTIONAL per-point road metadata (a field is written ONLY when it differs from its default, so files
+                     of maps without metadata are byte-identical to the old format; absent = default):
+                       type     "country" (default) | "city" | "highway"      city: footpaths + kerbs, dark smooth asphalt, signalised junctions; highway: lanes + median barrier
+                       oneway   true (default false)                         direction = point order, first point to last
+                       edgeL / edgeR  "none" (default) | "fence" | "guardrail" | "barrier" | "lamps"
+                                      LEFT / RIGHT edge looking forward along the point order (left = lateral -, right = lateral +)
+                       surface  "smooth" (default) | "worn" | "potholes" | "gravel"
+                       signs    "auto" (default) | "off"                     automatic warning signs on this segment
+                       features string array from "crosswalk" (zebra + pedestrian signs) | "bump" | "rumble" | "roadworks"
+                     type, oneway, edgeL, edgeR, surface, signs are SEGMENT attributes: they apply from this point to the NEXT
+                     point (exactly like bridge); the last point's are ignored. features apply at the point itself.
    markers.json      { version, note, markers: [ { id, name, tags[], color, x, y, z, nx, nz, yaw, radius, props{}, yOffset } ] }
                      Pins for the game to look up by name/tag and spawn things at. x,z = world metres (same convention as
                      roads.json), nx,nz = normalized 0..1; y = terrain height at export (editor ground) + yOffset, in metres - the
@@ -56,11 +67,18 @@
                      (x,z). radius: metres, 0 = point marker (>0 = trigger area). props: free-form string->string map.
    map.json          N, worldSizeMeters, maxHeightMeters, cellSizeMeters, seaLevel (normalized),
                      seaLevelMeters, class list {id,name,color}, file names (incl. markers), encodings, coordinate text.
+                     Optional (only when not default): driveSide "right" (default) | "left" - warning signs stand on the driver's
+                     edge; signStyle "us" (default, yellow diamonds) | "eu" (white triangles with red border).
+   map.tmap          Editable project file (see PROJECT FILE below). Exported alongside game assets so the folder
+                     is self-contained and editable; the game loader ignores it.
 
  PROJECT FILE  .tmap :  bytes 0-3 "TMAP", bytes 4-7 uint32 LE headerLength, then headerLength bytes of
-   UTF-8 JSON header (settings, roads, N, layers[{name,type,offset,byteLength}]), then raw typed arrays
-   (little-endian). Layer offsets are relative to the start of the data section (= 8 + headerLength).
-   Layers: height f32, water f32 (-1 = none), weight0..weight7 u8. The header also carries markers[] / nextMarkerId.
+   UTF-8 JSON header (format "tmap", version, N, settings, roads, nextRoadId, markers, nextMarkerId,
+   layers[{name,type,offset,byteLength}]), then raw typed arrays (little-endian). The JSON is right-padded
+   with spaces to a 4-byte boundary. Layer offsets are relative to the start of the data section
+   (= 8 + headerLength). Layers: height f32, water f32 (-1 = none), weight0..weight7 u8.
+   Road points inside the header carry the optional metadata fields above (only when not default); settings may carry
+   driveSide / signStyle (only when not default). Old .tmap files without them open with the defaults.
 =====================================================================================
 -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -112,8 +130,8 @@ h4{margin:10px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.06e
 .sw{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:4px 0}
 .sw div{height:34px;border:2px solid transparent;border-radius:4px;font-size:10px;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;display:flex;align-items:flex-end;justify-content:center;cursor:pointer}
 .sw div.on{border-color:#fff}
-#roadlist{max-height:110px;overflow:auto;border:1px solid var(--line);border-radius:3px;margin:4px 0}
-#roadlist div{padding:2px 6px;cursor:pointer}
+#roadlist{max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:3px;margin:4px 0}
+#roadlist div{padding:2px 6px;cursor:pointer;font-size:11px}
 #roadlist div.on{background:var(--accbg)}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:10}
 .overlay[hidden]{display:none}
@@ -128,7 +146,7 @@ kbd{background:var(--panel2);border:1px solid var(--line);border-radius:3px;padd
 <body>
 <div id="top">
   <b>Terrain Editor</b>
-  <button id="bNew">New</button><button id="bOpen">Open</button><button id="bSave">Save</button><button id="bExport">Export</button>
+  <button id="bNew">New</button><button id="bOpen">Open</button><button id="bSave">Save</button><button id="bExport" title="Export game map files and map.tmap (editable project; the game ignores it)">Export</button>
   <button id="bUndo">Undo</button><button id="bRedo">Redo</button>
   <span id="modeBtns" class="seg"><button data-m="paint" class="on" title="Tab cycles Paint / Split / Preview">Paint</button><button data-m="split">Split</button><button data-m="preview">Preview</button></span>
   <span class="sp"></span>
@@ -172,11 +190,22 @@ kbd{background:var(--panel2);border:1px solid var(--line);border-radius:3px;padd
   <h3 style="margin-top:10px">Road tool</h3>
   <div class="small">Click: add waypoint (starts a new road if none is being drawn). Drag point: move. Click on a line: insert point.
   Delete: remove selected point. Enter / double-click: finish road. Pick roads in the list; "Continue" appends to the selected road.
-  Per-point Bridge checkbox: the segment from that point to the next is a bridge (dashed, not baked).</div>
+   Pt bridge checkbox: the segment from that point to the next is a bridge (dashed, not baked).
+  <b>Road node inspector</b>: select a point to edit its type, one-way, left/right edge, surface, feature checkboxes and warning-sign mode.
+  Shift-click = select the range between the anchor point and the clicked one, Ctrl-click = add/remove a point; edits apply to all selected
+  points (one undo step). "Apply to whole road" / "From here to end" copy the primary point's segment attributes. New points inherit the
+  attributes of the segment they split or extend. 2D markings: coloured centre stripe = city (cyan) / highway (magenta), dashed side lines =
+  edge objects (brown fence, silver guardrail, grey barrier, yellow lamps), dots = worn / potholes / gravel, arrows = one-way,
+  letter badges = crosswalk X / bump B / rumble R / roadworks W (hover for a tooltip). The stripe colour shows the road type (cyan = city, magenta = highway);
+  the 3D preview renders both (city: kerbs + footpaths, zebra crossings, signal lights at junctions that have a city arm; highway: lanes + median).
+  "Auto-set type from city paint" sets the selected road's segments to city where their midpoint lies on city-class paint (&gt;50%).
+  Junction styles: roads.json has no junction data; the loader decides (city arm = traffic signals, highway arm = plain junction, else junction / roundabout),
+  map markers tagged roundabout / signals / junction_plain within 15 m override it, and an optional junctions.json in the export folder beats both.
+  Roads below water get automatic bridges at load time unless autoBridge is off (see mapLoader.js).</div>
   <h3 style="margin-top:10px">Hints</h3>
   <div class="small">Hardness 1 = hard cliff/plateau edges, hardness 0 = soft rolling hills. Holding the mouse still keeps applying the brush.
   Flatten samples height at stroke start unless a typed target is enabled. Water tool: click on the terrain height you want
-  as lake level, drag to carve a lake there. Autosave to the browser runs ~10 s after changes.</div>
+  as lake level, drag to carve a lake there. Autosave polls every 10 s and writes when the map has changed.</div>
   <div class="row" style="margin-top:10px"><span class="sp"></span><button id="helpClose" class="on">Close</button></div>
 </div></div>
 

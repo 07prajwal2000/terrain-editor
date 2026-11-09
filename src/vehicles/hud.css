@@ -21,4 +21,6 @@
 .hud-badge { display: inline-block; margin-left: 8px; vertical-align: middle; }
 .hud-air { position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%); font-size: 14px; opacity: 0; transition: opacity .2s; }
 .hud-air.on { opacity: .9; }
+.hud-look { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 12px; padding: 4px 12px; background: #1d2033b8; border-radius: 10px; opacity: 0; transition: opacity .3s; }
+.hud-look.on { opacity: .85; }
 @media (max-width: 700px) { .hud-keys { display: none; } .hud-kmh { font-size: 40px; } }

@@ -1,11 +1,11 @@
 {
  "formatVersion": 1,
- "N": 2048,
+ "N": 1024,
  "worldSizeMeters": 500,
- "maxHeightMeters": 70,
- "cellSizeMeters": 0.244140625,
+ "maxHeightMeters": 200,
+ "cellSizeMeters": 0.48828125,
  "seaLevel": 0.1,
- "seaLevelMeters": 7,
+ "seaLevelMeters": 20,
  "classes": [
   {
    "id": 0,

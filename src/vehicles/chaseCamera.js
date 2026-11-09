@@ -3,7 +3,13 @@
 // Chase: critically damped springs (smoothDamp) on the camera position and on the look-at point; the heading follows the chassis yaw
 // (blended with the velocity direction when sliding), distance/height scale with the car size, distance + FOV grow with speed, the look-at point leads
 // into the turn (steering + lateral velocity). Never below heightAt + MARGIN.
-const MARGIN = 1.2;
+// FREE LOOK (cameraLook.js): update(dt, pose, veh, lk) with lk = { yaw, pitch } (effective offsets from lookYaw()). The springs above run on the plain chase geometry;
+//   then the camera offset from the car is orbited by the (separately smoothed) look yaw/pitch, so the offset is relative to the car heading and the orbit is an exact arc
+//   (no corner cutting through the car). The look-at point is rotated by the same yaw. Hood view: yaw is free (B = look back), pitch is limited to -15..+29 deg.
+// ROAD SHAKE: veh.state.shake (0..~1.2, roughness x speed) x settings.shake metres of high-frequency camera jitter on top (chase view only; no shake when stopped).
+import { orbitOffset, aboveGround, wrapAngle } from './cameraLook.js';
+export const MARGIN = 1.2;
+const ZERO = { yaw: 0, pitch: 0 };
 
 function smoothDamp(cur, target, vel, smoothTime, dt) { // Game Programming Gems 4 critically damped spring, returns [value, velocity]
   const omega = 2 / smoothTime, x = omega * dt, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
@@ -13,25 +19,35 @@ function smoothDamp(cur, target, vel, smoothTime, dt) { // Game Programming Gems
 const angDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
 
 export class ChaseCamera {
-  constructor(THREE, camera, { heightAt, dims }) {
-    this.T = THREE; this.camera = camera; this.heightAt = heightAt; this.mode = 0;
+  constructor(THREE, camera, { heightAt, dims, settings = { shake: 0.05 } }) {
+    this.T = THREE; this.camera = camera; this.heightAt = heightAt; this.mode = 0; this.settings = settings;
+    this.ly = 0; this.lyVel = 0; this.lp = 0; this.lpVel = 0; this._lookInit = false; this._t = 0; this._o = [0, 0, 0];
+    this._e = new THREE.Euler(); this._q2 = new THREE.Quaternion();
     const L = dims.length, H = dims.height;
     this.dist = Math.max(6.5, L * 1.15 + 3.2); this.height = H * 0.75 + 1.6; this.lookH = H * 0.45 + 0.4; this.hoodH = H * 0.82; this.hoodZ = L * 0.12;
     this.pos = [0, 0, 0]; this.vel = [0, 0, 0]; this.look = [0, 0, 0]; this.lvel = [0, 0, 0]; this.yaw = 0; this.yawVel = 0; this.fov = 62; this.lead = 0;
     this._v = new THREE.Vector3(); this._q = new THREE.Quaternion(); this.baseFov = 62;
   }
   toggle() { this.mode = (this.mode + 1) % 2; return this.mode; }
-  snap(pose, veh) { this._snap = true; this.update(1 / 60, pose, veh); }
+  snap(pose, veh, lk = ZERO) { this._snap = true; this._lookInit = false; this.update(1 / 60, pose, veh, lk); }
 
-  update(dt, pose, veh) {
-    dt = Math.min(dt, 0.05);
+  update(dt, pose, veh, lk = ZERO) {
+    dt = Math.min(dt, 0.05); this._t += dt;
+    if (!this._lookInit) { this.ly = lk.yaw; this.lp = lk.pitch; this.lyVel = this.lpVel = 0; this._lookInit = true; }
+    else { // look offsets get their own fast springs (mouse feels direct, B eases in/out); the yaw one runs on the shortest arc
+      const [v, vv] = smoothDamp(angDiff(this.ly, lk.yaw), 0, this.lyVel, 0.07, dt); this.ly = wrapAngle(lk.yaw + v); this.lyVel = vv;
+      [this.lp, this.lpVel] = smoothDamp(this.lp, lk.pitch, this.lpVel, 0.07, dt);
+    }
     const T = this.T, cam = this.camera, s = veh.state;
     this._q.set(pose.qx, pose.qy, pose.qz, pose.qw);
     const fwd = this._v.set(0, 0, 1).applyQuaternion(this._q); // chassis forward
     const carYaw = Math.atan2(fwd.x, fwd.z), speed = s.speed, speedFrac = Math.min(speed / Math.max(veh.vTop, 1), 1.2);
     if (this.mode === 1) { // hood: rigidly on the (interpolated) body
       const off = this._v.set(0, this.hoodH, this.hoodZ).applyQuaternion(this._q);
-      cam.position.set(pose.x + off.x, pose.y + off.y, pose.z + off.z); cam.quaternion.copy(this._q);
+      cam.position.set(pose.x + off.x, pose.y + off.y, pose.z + off.z);
+      // a three.js camera looks down its local -Z and the car faces +Z, hence the extra 180 deg; then the look offset (yaw free, pitch limited)
+      this._e.set(-Math.max(-0.26, Math.min(0.5, this.lp)), Math.PI + this.ly, 0, 'YXZ'); this._q2.setFromEuler(this._e);
+      cam.quaternion.copy(this._q).multiply(this._q2);
       this._fov(dt, this.baseFov + 10 * speedFrac); this._snap = true; // re-snap the chase spring when switching back
       return;
     }
@@ -60,8 +76,17 @@ export class ChaseCamera {
     // keep the camera out of the ground (and a minimum distance from the car so it never sits inside it)
     const gy = this.heightAt(this.pos[0], this.pos[2]) + MARGIN;
     if (this.pos[1] < gy) { this.pos[1] = gy; if (this.vel[1] < 0) this.vel[1] = 0; }
-    cam.position.set(this.pos[0], this.pos[1], this.pos[2]);
-    cam.lookAt(this.look[0], this.look[1], this.look[2]);
+    // free look: orbit the spring camera around the car (pivot = look height above the pose), rotate the look-at point by the same yaw
+    const px = pose.x, py = pose.y + this.lookH, pz = pose.z, o = orbitOffset(this.pos[0] - px, this.pos[1] - py, this.pos[2] - pz, this.ly, this.lp, this._o);
+    const cy_ = Math.cos(this.ly), sy_ = Math.sin(this.ly), lx = this.look[0] - px, lz = this.look[2] - pz;
+    const cx = px + o[0], cz = pz + o[2];
+    cam.position.set(cx, aboveGround(py + o[1], this.heightAt(cx, cz), MARGIN), cz);
+    cam.lookAt(px + lx * cy_ + lz * sy_, this.look[1], pz - lx * sy_ + lz * cy_);
+    const sh = (veh.state.shake || 0) * this.settings.shake;
+    if (sh > 1e-4) { // road shake: a few incommensurate sines (deterministic, no allocation)
+      const t = this._t;
+      cam.translateY(sh * (0.6 * Math.sin(t * 47) + 0.4 * Math.sin(t * 83 + 1.7))); cam.translateX(sh * 0.5 * Math.sin(t * 61 + 0.5)); cam.rotateZ(sh * 0.1 * Math.sin(t * 37 + 2));
+    }
     this._fov(dt, this.baseFov + 14 * Math.min(speedFrac, 1));
   }
   _fov(dt, target) {

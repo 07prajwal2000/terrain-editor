@@ -6,6 +6,7 @@
 //   info()        -> map.json object            newBuffers() -> { h16, w16, s0, s1 } (full-size export arrays)
 //   fill(b, rect) -> refill rect of b from the editor data (rect {x0,y0,x1,y1}, x1/y1 exclusive)
 //   roads()       -> roads.json object          markers()    -> markers.json object
+//   onRoadsRebuilt?() called after every road rebuild of the preview map (the 2D view redraws the auto bridges from map.roadDetail.autoBridges)
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { loadMapFromData } from '../world/mapLoader.js';
@@ -26,10 +27,10 @@ export function createPreview(host, api) {
   const world = new THREE.Group(); world.name = 'previewWorld'; // vertical exaggeration scales this group (ponytail: the terrain shader's rock tint uses unscaled normals)
   scene.add(world);
 
-  let map = null, pins = null, buf = null, visible = false, needsRender = true, ringDirty = true, timer = null, lastFlush = 0;
+  let map = null, pins = null, buf = null, visible = false, needsRender = true, ringDirty = true, timer = null, lastFlush = 0, lastAnim = 0;
   let pending = { rect: null, full: true };
   let brush = null, exag = 1, markersVisible = true;
-  const toggles = { water: true, roads: true, wire: false };
+  const toggles = { water: true, roads: true, edges: true, signs: true, wire: false };
   const stats = { lastUpdateMs: 0, lastFullMs: 0, updates: 0, renders: 0 };
 
   // brush ring: 64 points draped on the terrain
@@ -41,6 +42,7 @@ export function createPreview(host, api) {
     if (!map) return;
     map.parts.ocean.visible = toggles.water; if (map.parts.lakes) map.parts.lakes.visible = toggles.water;
     if (map.parts.roadGroup) map.parts.roadGroup.visible = toggles.roads;
+    if (map.parts.roadEdges) { map.parts.roadEdges.visible = toggles.edges; map.parts.roadProps.visible = toggles.edges; map.parts.roadSigns.visible = toggles.signs; }
     map.parts.material.wireframe = toggles.wire;
     if (pins) pins.group.visible = markersVisible;
     world.scale.y = exag;
@@ -65,7 +67,8 @@ export function createPreview(host, api) {
     const W = map.info.worldSize;
     pins = createMarkerPins(THREE, { heightAt: map.heightAt, size: Math.max(2, W * 0.012) });
     pins.setMarkers(map.markers); world.add(pins.group);
-    map.onRebuild = () => { pins.setMarkers(map.markers); ringDirty = true; needsRender = true; };
+    map.onRebuild = () => { pins.setMarkers(map.markers); ringDirty = true; needsRender = true; if (api.onRoadsRebuilt) api.onRoadsRebuilt(); };
+    if (api.onRoadsRebuilt) api.onRoadsRebuilt();
     applyFog(THREE, scene, W);
     if (first || oldW !== W) placeCamera(W, map.info.maxHeight);
     applyToggles();
@@ -76,7 +79,8 @@ export function createPreview(host, api) {
     timer = null;
     if (!visible) return;
     const t0 = performance.now(), info = api.info();
-    if (pending.full || !map || info.N !== map.info.N || info.worldSizeMeters !== map.info.worldSize || info.maxHeightMeters !== map.info.maxHeight) build(info);
+    if (pending.full || !map || info.N !== map.info.N || info.worldSizeMeters !== map.info.worldSize || info.maxHeightMeters !== map.info.maxHeight
+      || (info.driveSide || 'right') !== map.info.driveSide || (info.signStyle || 'us') !== map.info.signStyle) build(info);
     else {
       if (info.seaLevelMeters !== map.info.seaLevel) map.setSeaLevel(info.seaLevelMeters);
       const r = pending.rect;
@@ -117,6 +121,8 @@ export function createPreview(host, api) {
   (function loop() {
     requestAnimationFrame(loop);
     if (!visible || !map) return;
+    const now = performance.now(); // signal lights of 'signals' junctions: ~15 fps clock + re-render, only when the map has any
+    if (map.roadDetail && map.roadDetail.counts.signalPosts > 0 && now - lastAnim > 66) { map.update(Math.min(0.25, (now - lastAnim) / 1000)); lastAnim = now; needsRender = true; }
     if (ringDirty) { updateRing(); needsRender = true; }
     if (needsRender) { needsRender = false; renderer.render(scene, camera); stats.renders++; }
   })();

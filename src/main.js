@@ -35,7 +35,7 @@ console.log('map loaded', map.info);
 const pins = createMarkerPins(THREE, { heightAt: map.heightAt, size: Math.max(2, W * 0.012) });
 pins.setMarkers(map.markers); pins.group.visible = false; scene.add(pins.group);
 
-// ---- roads as debug polylines (the road/bridge MESHES are a later task) ----
+// ---- roads as debug polylines (the road/bridge meshes themselves are in map.group) ----
 const roadLines = new THREE.Group(); roadLines.visible = false; scene.add(roadLines); // off by default; the road MESH is in map.group
 for (const r of map.roads) {
   const pts = r.getPoints(2), pos = [], col = [];
@@ -73,6 +73,18 @@ $('cbWater').onchange = (e) => { map.parts.ocean.visible = e.target.checked; if 
 $('cbRoads').onchange = (e) => { roadLines.visible = e.target.checked; };
 $('cbMarkers').onchange = (e) => { pins.group.visible = e.target.checked; };
 $('cbMesh').onchange = (e) => { map.parts.roadGroup.visible = e.target.checked; };
+$('cbEdges').onchange = (e) => { map.parts.roadEdges.visible = map.parts.roadProps.visible = e.target.checked; };
+$('cbSigns').onchange = (e) => { map.parts.roadSigns.visible = e.target.checked; };
+
+// ---- driver's-eye view of a warning sign: `dist` m before it (default 55), on the road it belongs to, looking along the travel direction
+function signView(i = 0, dist = 55) {
+  const sg = map.roadDetail.signs[i]; if (!sg) return null;
+  const rx = -sg.fz * sg.side, rz = sg.fx * sg.side, cx = sg.x - rx * sg.offset, cz = sg.z - rz * sg.offset; // centre line point beside the sign
+  const lane = (sg.offset - 0.7) / 2, x = cx + rx * lane - sg.fx * dist, z = cz + rz * lane - sg.fz * dist, y = map.heightAt(x, z) + 1.3; // driver's lane
+  lookFrom(x, y, z, sg.x, y + 0.9, sg.z); return sg;
+}
+$('bSign').onclick = () => { signIdx = (signIdx + 1) % Math.max(1, map.roadDetail.signs.length); signView(signIdx); };
+let signIdx = -1;
 
 // ---- fly camera ----
 let yaw = 0, pitch = 0, speed = W / 15;
@@ -190,6 +202,7 @@ function hud() {
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   fly(dt);
+  map.update(dt); // signal lights of 'signals' junctions (map.update: see mapLoader.js)
   if (balls.length) { world.timestep = 1 / 60; world.step(); for (const b of balls) { const p = b.body.translation(); b.mesh.position.set(p.x, p.y, p.z); } }
   renderer.render(scene, camera);
   frames++; if (now - fpsT > 500) { fps = frames * 1000 / (now - fpsT); frames = 0; fpsT = now; }
@@ -197,4 +210,4 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__viewer = { pins, roadView, jView, balls, THREE, camera, map, world, scene, renderer, lookFrom, setLook: (x, y, z, tx, ty, tz) => lookFrom(x, y, z, tx, ty, tz) };
+window.__viewer = { signView,  pins, roadView, jView, balls, THREE, camera, map, world, scene, renderer, lookFrom, setLook: (x, y, z, tx, ty, tz) => lookFrom(x, y, z, tx, ty, tz) };

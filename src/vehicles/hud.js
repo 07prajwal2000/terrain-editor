@@ -8,13 +8,14 @@ export function createHud({ car, arch }) {
   root.innerHTML = `
     <div class="hud-top">
       <div class="ui-box ui-box--blue" style="padding:4px 14px"><span class="hud-car"></span><span class="ui-box ui-badge ui-box--yellow hud-badge"></span></div>
-      <div class="hud-surface">Surface: <b id="h-surf">-</b></div>
+      <div class="hud-surface">Surface: <b id="h-surf">-</b><b id="h-road"></b></div>
       <div class="hud-dbg" id="h-dbg"></div>
     </div>
     <div class="hud-links">
       <a class="ui-box ui-btn" href="/garage.html" data-hud="garage">Garage</a>
     </div>
     <div class="hud-msg" id="h-msg"></div>
+    <div class="hud-look" id="h-look">Click to enable mouse look</div>
     <div class="hud-air" id="h-air">AIR: W/S pitch &middot; A/D roll &middot; Q/E yaw</div>
     <div class="hud-speed">
       <div class="hud-kmh"><span id="h-kmh">0</span><small>km/h</small></div>
@@ -22,12 +23,13 @@ export function createHud({ car, arch }) {
     </div>
     <div class="hud-keys"><kbd>W</kbd><kbd>S</kbd> gas / brake+reverse &nbsp; <kbd>A</kbd><kbd>D</kbd> steer &nbsp; <kbd>Space</kbd> handbrake<br>
       <kbd>R</kbd> reset upright &nbsp; <kbd>C</kbd> camera &nbsp; <kbd>&#96;</kbd> tuning panel<br>
+      Mouse (click the game): look around &nbsp; <kbd>B</kbd> look back &nbsp; Pad: right stick<br>
       In the air: <kbd>W</kbd><kbd>S</kbd> pitch, <kbd>A</kbd><kbd>D</kbd> roll, <kbd>Q</kbd><kbd>E</kbd> yaw &nbsp; Pad: RT/LT, stick, A handbrake, Y reset, X camera</div>`;
   document.body.append(root);
   const $ = (id) => root.querySelector('#' + id);
   root.querySelector('.hud-car').textContent = car.name; // textContent: names come from file names
   root.querySelector('.hud-badge').textContent = arch;
-  const el = { kmh: $('h-kmh'), gear: $('h-gear'), rpm: $('h-rpm'), surf: $('h-surf'), msg: $('h-msg'), air: $('h-air'), dbg: $('h-dbg') };
+  const el = { kmh: $('h-kmh'), gear: $('h-gear'), rpm: $('h-rpm'), surf: $('h-surf'), road: $('h-road'), look: $('h-look'), msg: $('h-msg'), air: $('h-air'), dbg: $('h-dbg') };
   let msgT = 0; const last = {};
   return {
     root,
@@ -36,10 +38,13 @@ export function createHud({ car, arch }) {
       const g = vs.gear < 0 ? 'R' : k < 1 && !vs.throttle ? 'N' : String(vs.gear); if (g !== last.g) { el.gear.textContent = g; last.g = g; }
       el.rpm.style.width = (vs.rpm * 100).toFixed(0) + '%';
       const sn = vs.inWater ? 'water' : SURFACE_NAMES[vs.surface] || '-'; if (sn !== last.s) { el.surf.textContent = sn; last.s = sn; }
+      const rs = vs.roadSurface, rn = rs === 'gravel' ? 'Gravel' : rs === 'footpath' ? 'Footpath' : rs && rs !== 'smooth' ? 'Road: ' + rs : ''; // smooth = plain "road"
+      if (rn !== last.r) { el.road.textContent = rn && ' / ' + rn; last.r = rn; }
       el.air.classList.toggle('on', !!vs.airborne);
       if (dbgText !== last.d) { el.dbg.textContent = dbgText || ''; last.d = dbgText; }
       if (msgT && performance.now() > msgT) { el.msg.classList.remove('on'); msgT = 0; }
     },
+    lookHint(show) { if (show !== last.h) { el.look.classList.toggle('on', show); last.h = show; } }, // "click to enable mouse look" while pointer lock is off
     message(t, ms = 1400) { el.msg.textContent = t; el.msg.classList.add('on'); msgT = performance.now() + ms; },
   };
 }

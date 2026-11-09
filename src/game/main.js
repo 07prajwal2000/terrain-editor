@@ -1,6 +1,7 @@
 // Game page: drive one car around a map. URL params:
 //   ?map=/maps/sample/   map folder (default sample)         ?car=<id>   car id (default: garage choice, else first drivable)
 //   ?testRamp            dev: a static ramp 30 m ahead of the spawn (spawn then faces +Z)
+// Mouse look: click the canvas (pointer lock), mouse orbits the camera, B looks back, right stick on a pad; settings in the tuning panel (Camera folder).
 //   ?spawn=x,z[,yawDeg]  dev: override the spawn (yaw like markers: 0 = +X east, 90 = +Z south)
 // Debug hook: window.__game = { vehicle, map, world, input, camera, stats, THREE, reset(), setInput(obj|null) }.
 import * as THREE from 'three';
@@ -13,6 +14,7 @@ import { resolveProfile, archetypeOf, ARCHETYPES } from '../vehicles/handling.js
 import { Vehicle } from '../vehicles/Vehicle.js';
 import { createInput } from '../vehicles/input.js';
 import { ChaseCamera } from '../vehicles/chaseCamera.js';
+import { newLook, stepLook, lookYaw, loadSettings } from '../vehicles/cameraLook.js';
 import { createHud } from '../vehicles/hud.js';
 import { createTuningPanel } from '../vehicles/tuningPanel.js';
 import { addWedgeCollider, wedgeMesh } from '../vehicles/wedge.js';
@@ -79,9 +81,11 @@ async function main() {
   }
 
   const input = createInput();
-  const chase = new ChaseCamera(THREE, camera, { heightAt: map.heightAt, dims: car.dimensions });
+  input.mouseLook(renderer.domElement); // click the canvas = pointer lock = free look (cameraLook.js)
+  const settings = loadSettings(), look = newLook(), lookView = { yaw: 0, pitch: 0 };
+  const chase = new ChaseCamera(THREE, camera, { heightAt: map.heightAt, dims: car.dimensions, settings });
   const hud = createHud({ car, arch: ARCHETYPES[archetypeOf(car.id)].label });
-  const tuning = createTuningPanel({ vehicle, car, onMessage: (m) => hud.message(m) });
+  const tuning = createTuningPanel({ vehicle, car, onMessage: (m) => hud.message(m), camera: settings });
 
   // shadow rig follows the car
   const S = Math.max(28, car.dimensions.length * 2.4);
@@ -96,8 +100,8 @@ async function main() {
   const margin = 12;
   const outOfWorld = (p) => !(p.y > -30) || p.x < -margin || p.z < -margin || p.x > W + margin || p.z > W + margin;
   let resets = 0;
-  const resetToSafe = (why) => { vehicle.resetAt(safe.x, safe.y + 1.0, safe.z, safe.yaw); chase.snap(vehicle.poseAt(1), vehicle); hud.message(why); resets++; console.warn('auto reset:', why); };
-  const resetUpright = () => { vehicle.resetUpright(1.0); chase.snap(vehicle.poseAt(1), vehicle); hud.message('Reset'); };
+  const resetToSafe = (why) => { Object.assign(look, newLook()); vehicle.resetAt(safe.x, safe.y + 1.0, safe.z, safe.yaw); chase.snap(vehicle.poseAt(1), vehicle); hud.message(why); resets++; console.warn('auto reset:', why); };
+  const resetUpright = () => { Object.assign(look, newLook()); vehicle.resetUpright(1.0); chase.snap(vehicle.poseAt(1), vehicle); hud.message('Reset'); };
 
   status.style.display = 'none';
   chase.snap(vehicle.poseAt(1), vehicle);
@@ -109,7 +113,7 @@ async function main() {
     requestAnimationFrame(frame);
     const dt = Math.min((now - last) / 1000, 0.1); last = now;
     const s = input.update();
-    if (s.tuningPressed) tuning.toggle();
+    if (s.tuningPressed) { tuning.toggle(); input.unlock?.(); } // the panel needs the mouse cursor
     if (s.cameraPressed) { chase.toggle(); }
     if (s.resetPressed) resetUpright();
     acc += dt; let n = 0;
@@ -124,9 +128,12 @@ async function main() {
     else if (vehicle.submerged > 3) resetToSafe('Drowned: reset');
     else if (vehicle.nContact >= 3 && !vehicle.inWater && now - safe.t > 250) { safe.x = p.x; safe.y = p.y; safe.z = p.z; safe.yaw = vehicle.heading(); safe.t = now; }
 
+    map.update?.(dt); // advances the traffic-signal light cycle
     vehicle.updateVisual(acc / DT);
     vehicle.poseAt(acc / DT, pose);
-    chase.update(dt, pose, vehicle);
+    stepLook(look, dt, { dx: s.lookX, dy: s.lookY, sx: s.lookSX, sy: s.lookSY, behind: s.lookBehind }, vehicle.state.speed, settings);
+    lookView.yaw = lookYaw(look); lookView.pitch = look.pitch;
+    chase.update(dt, pose, vehicle, lookView);
     // shadow rig
     sun.target.position.set(pose.x, pose.y, pose.z); sun.position.set(pose.x + sunDir.x * 150, pose.y + sunDir.y * 150, pose.z + sunDir.z * 150);
     sun.target.updateMatrixWorld();
@@ -135,7 +142,7 @@ async function main() {
     fpsEma += (1 / Math.max(dt, 1e-4) - fpsEma) * 0.05; frameCount++;
     Object.assign(stats, { physMs, stepsPerFrame: steps, fps: fpsEma, frames: frameCount, resets });
     if (frameCount % 10 === 0) dbgText = `${fpsEma.toFixed(0)} fps  physics ${physMs.toFixed(2)} ms (${steps} steps)  ${input.padName ? 'pad' : 'keys'}`;
-    hud.update(vehicle.state, dbgText);
+    hud.update(vehicle.state, dbgText); hud.lookHint(!input.locked);
   }
   requestAnimationFrame((t) => { last = t; frame(t); });
 

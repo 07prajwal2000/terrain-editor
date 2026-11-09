@@ -1,6 +1,7 @@
 // Terrain / biome map editor (module). Export formats + coordinate convention: see the comment block at the top of /editor.html.
 // The 3D preview lives in ./preview3d.js and uses the game's own loader (src/world/mapLoader.js).
 import { createPreview } from './preview3d.js';
+import { ROAD_TYPES, EDGE_TYPES, SURFACES, FEATURES, SIGN_MODES, DRIVE_SIDES, SIGN_STYLES, NODE_DEFAULTS, MAP_DEFAULTS } from '../world/roadMeta.js';
 // =====================================================================================
 // SECTION 1: constants, state
 // =====================================================================================
@@ -13,7 +14,7 @@ CLASSES.forEach((c,i)=>{const v=parseInt(c.color.slice(1),16);CR[i]=v>>16;CG[i]=
 const TS = 64, MAXUNDO = 40;
 
 let N = 1024;
-const S = {world:2000, maxH:200, sea:0.1};
+const S = {world:2000, maxH:200, sea:0.1, driveSide:MAP_DEFAULTS.driveSide, signStyle:MAP_DEFAULTS.signStyle};
 let H, WL, WC, scratchH, strokeA;             // height f32, waterLevel f32 (-1 none), weights[8] u8
 let roads = [], nextRoadId = 1;
 let mapCv, mctx, img, img32;
@@ -296,7 +297,7 @@ function draw(){
 }
 // (grid is drawn by drawGrid() in SECTION 4b on the separate overlay canvas #gv)
 function drawRoads(){
-  const z=view.z, cell=S.world/N;
+  const z=view.z, cell=S.world/N; badgeHits=[];
   roads.forEach((rd,ri)=>{
     if(rd.points.length<1)return;
     const sel = ri===selRoad, sm = sampleRoad(rd,Math.max(1,4/z));
@@ -311,13 +312,63 @@ function drawRoads(){
     ctx.setLineDash([]);ctx.lineWidth=wpx;ctx.strokeStyle=sel?'rgba(255,220,80,.35)':'rgba(255,255,255,.22)';ctx.stroke(pS);
     ctx.lineWidth=sel?2:1.5;ctx.strokeStyle=sel?'#ffd84a':'#e8e8e8';ctx.stroke(pS);
     ctx.setLineDash([8,6]);ctx.lineWidth=sel?3:2;ctx.strokeStyle='#ff7a3c';ctx.stroke(pB);ctx.setLineDash([]);
+    drawRoadMeta(rd,sm,wpx);
     if(sel||tool==='road'){
       rd.points.forEach((p,pi)=>{
         ctx.beginPath();ctx.arc(view.ox+p.x*N*z,view.oy+p.z*N*z,pi===selPt&&sel?6:4,0,6.3);
-        ctx.fillStyle=pi===selPt&&sel?'#fff':p.bridge?'#ff7a3c':sel?'#ffd84a':'#bbb';ctx.fill();ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.stroke();});
+        ctx.fillStyle=pi===selPt&&sel?'#fff':p.bridge?'#ff7a3c':sel?'#ffd84a':'#bbb';ctx.fill();ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.stroke();
+        if(sel&&selPts.has(pi)&&selOwner===selPt){ctx.beginPath();ctx.arc(view.ox+p.x*N*z,view.oy+p.z*N*z,9,0,6.3);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}});
     }
   });
+  drawAutoBridges(cell);
 }
+// bridges the LOADER adds over water (roadBridges.js), taken from the 3D preview's map (so they only show while the preview is on, Split / Preview mode)
+function drawAutoBridges(cell){
+  const ab=pv&&mode!=='paint'&&pv.map&&pv.map.roadDetail&&pv.map.roadDetail.autoBridges; if(!ab||!ab.length)return;
+  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.setLineDash([8,6]);ctx.lineWidth=3;ctx.strokeStyle='#38bdf8';ctx.font='11px sans-serif';ctx.fillStyle='#38bdf8';
+  for(const b of ab){
+    const q=b.path,p=new Path2D();
+    for(let i=0;i<q.length;i+=2){const X=view.ox+q[i]/cell*view.z,Y=view.oy+q[i+1]/cell*view.z;i?p.lineTo(X,Y):p.moveTo(X,Y);}
+    ctx.stroke(p);
+    if(view.z>=0.5){const m=(q.length>>2)<<1;ctx.fillText('auto bridge over water',view.ox+q[m]/cell*view.z+6,view.oy+q[m+1]/cell*view.z-6);}
+  }
+  ctx.restore();
+}
+// ---- road metadata overlay: type stripe, edge dashes (L/R of travel), surface dots, one-way arrows, feature badges (tooltips via cv.title) ----
+const EDGE_COL={fence:'#a0662a',guardrail:'#e4e9f1',barrier:'#8d939e',lamps:'#ffe14a'}, TYPE_COL={city:'#22d3ee',highway:'#e040fb'}, SURF_COL={worn:'#e0d2b0',potholes:'#ff6b6b',gravel:'#d9a35c'};
+const FEAT_UI={crosswalk:['X','#ffffff','Crosswalk: zebra stripes across the road + two pedestrian signs (city: kerb ramp)'],bump:['B','#ffd400','Speed bump'],rumble:['R','#b9b9b9','Rumble strips'],roadworks:['W','#ff8a1c','Roadworks: cones, barrier, sign']};
+let badgeHits=[];
+function drawRoadMeta(rd,sm,wpx){
+  const n=rd.points.length,z=view.z,L=sm.x.length; if(n<2)return;
+  const X=j=>view.ox+sm.x[j]*z, Y=j=>view.oy+sm.z[j]*z, M=j=>rd.points[Math.min(sm.seg[j],n-2)];
+  const runs=(colOf,off)=>{const paths=new Map(),last=new Map();
+    for(let j=0;j<L-1;j++){const c=colOf(M(j));if(!c)continue;let p=paths.get(c);if(!p)paths.set(c,p=new Path2D());
+      let ax=X(j),ay=Y(j),bx=X(j+1),by=Y(j+1);
+      if(off){const dx=bx-ax,dy=by-ay,l=Math.hypot(dx,dy)||1,ox=-dy/l*off,oy=dx/l*off;ax+=ox;ay+=oy;bx+=ox;by+=oy;}
+      if(last.get(c)!==j-1)p.moveTo(ax,ay);p.lineTo(bx,by);last.set(c,j);}
+    return paths;};
+  const stroke=(paths,w,dash,cap)=>{ctx.setLineDash(dash);ctx.lineCap=cap;ctx.lineWidth=w;for(const [c,p] of paths){ctx.strokeStyle=c;ctx.stroke(p);}};
+  stroke(runs(m=>TYPE_COL[getA(m,'type')],0),3.5,[],'butt');
+  stroke(runs(m=>SURF_COL[getA(m,'surface')],0),3.5,[0.1,5],'round');
+  const off=wpx/2+3;
+  stroke(runs(m=>EDGE_COL[getA(m,'edgeL')],-off),2.5,[5,3],'butt');
+  stroke(runs(m=>EDGE_COL[getA(m,'edgeR')],off),2.5,[5,3],'butt');
+  ctx.setLineDash([]);ctx.lineCap='round';
+  let acc=0;                                          // one-way arrows every ~40 px along the point order
+  for(let j=0;j<L-1;j++){
+    const dx=X(j+1)-X(j),dy=Y(j+1)-Y(j),l=Math.hypot(dx,dy); acc+=l;
+    if(acc<40||!getA(M(j),'oneway')||!l)continue; acc=0;
+    const x=X(j),y=Y(j),ux=dx/l,uy=dy/l;
+    ctx.beginPath();ctx.moveTo(x+ux*6,y+uy*6);ctx.lineTo(x-ux*4-uy*4.5,y-uy*4+ux*4.5);ctx.lineTo(x-ux*4+uy*4.5,y-uy*4-ux*4.5);ctx.closePath();
+    ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.stroke();badgeHits.push({x,y,r:6,text:'One-way: direction = point order (first to last)'});
+  }
+  ctx.font='bold 9px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  rd.points.forEach(p=>{
+    getA(p,'features').forEach((f,k)=>{const [ch,col,tip]=FEAT_UI[f],x=view.ox+p.x*N*z+10+k*14,y=view.oy+p.z*N*z-10;
+      ctx.beginPath();ctx.arc(x,y,6.5,0,6.3);ctx.fillStyle=col;ctx.fill();ctx.strokeStyle='#000';ctx.lineWidth=1.2;ctx.stroke();ctx.fillStyle='#000';ctx.fillText(ch,x,y+0.5);badgeHits.push({x,y,r:6.5,text:tip});});
+  });
+}
+function badgeTip(sx,sy){let t='';for(const b of badgeHits)if(Math.hypot(sx-b.x,sy-b.y)<=b.r+2){t=b.text;break;}if(cv.title!==t)cv.title=t;}
 function isBrushTool(t){return t!=='road'&&t!=='pan'&&t!=='marker';}
 function drawCursor(){
   if(!hover||!isBrushTool(tool)||spaceDown)return;
@@ -447,6 +498,52 @@ function finishStroke(){if(!active)return;active=false;endStroke();}
 // SECTION 7: roads (spline, editing, bake)
 // =====================================================================================
 let selRoad=-1, selPt=-1, drawing=false, dragging=null;
+// ---- road node metadata (see roadMeta.js): a field is stored on the point ONLY when it differs from its default ----
+const SEG_KEYS=['type','oneway','edgeL','edgeR','surface','signs'], NODE_KEYS=[...SEG_KEYS,'features'];
+function getA(p,k){return k==='features'?(p.features||[]):(p[k]===undefined?NODE_DEFAULTS[k]:p[k]);}
+function setA(p,k,v){
+  if(k==='features'){const f=FEATURES.filter(x=>v.includes(x));if(f.length)p.features=f;else delete p.features;return;}
+  if(v===NODE_DEFAULTS[k])delete p[k];else p[k]=v;
+}
+// multi-selection of points on the selected road: selPts (Set of indices), selPt = primary, selAnch = anchor for shift-range
+let selPts=new Set(), selOwner=-2, selOwnerRoad=-2, selAnch=-1;
+function syncSel(){            // selection indices (sorted); resets to {selPt} when selPt was changed elsewhere (insert, delete, undo, list click)
+  if(selRoad<0||selPt<0){selPts=new Set();return [];}
+  if(selOwner!==selPt||selOwnerRoad!==selRoad){selPts=new Set([selPt]);selOwner=selPt;selOwnerRoad=selRoad;selAnch=selPt;}
+  const n=roads[selRoad]?roads[selRoad].points.length:0;
+  return [...selPts].filter(i=>i<n).sort((a,b)=>a-b);
+}
+function editSel(fn){          // apply fn(point,index) to every selected point as ONE undo step
+  const idx=syncSel(); if(!idx.length)return;
+  const b=snap(),rd=roads[selRoad]; idx.forEach(i=>fn(rd.points[i],i)); commitRoads(b); needDraw=true;
+}
+function applySegAttrs(from){  // copy the primary point's segment attributes onto points from..end of the road (features are per node, not copied)
+  const rd=roads[selRoad],src=rd&&rd.points[selPt]; if(!src)return;
+  const b=snap(),vals=SEG_KEYS.map(k=>getA(src,k));
+  for(let i=from;i<rd.points.length;i++)SEG_KEYS.forEach((k,ki)=>setA(rd.points[i],k,vals[ki]));
+  commitRoads(b);needDraw=true;
+}
+function autoTypeFromCityPaint(){  // selected road: type city where the segment midpoint lies on pixels with city weight > 50%; others unchanged; one undo step
+  const rd=roads[selRoad]; if(!rd||rd.points.length<2){toast('Select a road first');return;}
+  const sm=sampleRoad(rd,1e9), b=snap(); let n=0;        // huge step = exactly the points t=0 and t=0.5 of every segment
+  for(let j=0;j<sm.x.length;j++){
+    if(sm.t[j]!==0.5)continue; const px=clamp(Math.floor(sm.x[j]),0,N-1),py=clamp(Math.floor(sm.z[j]),0,N-1);
+    if(WC[7][py*N+px]>127&&getA(rd.points[sm.seg[j]],'type')!=='city'){setA(rd.points[sm.seg[j]],'type','city');n++;}
+  }
+  commitRoads(b); toast(n?n+' segment(s) set to city':'No segment midpoint on city paint (or already city)');
+}
+function inheritSeg(rd,from,to){const a=rd.points[from],c=rd.points[to];if(a&&c)for(const k of SEG_KEYS)if(a[k]!==undefined&&c[k]===undefined)c[k]=a[k];}
+function roadSummary(r){
+  const pts=r.points.length>1?r.points.slice(0,-1):r.points, uniq=(f)=>[...new Set(pts.flatMap(f))];
+  const parts=[], ty=uniq(p=>getA(p,'type')!=='country'?[getA(p,'type')]:[]); if(ty.length)parts.push(ty.join('/'));
+  if(pts.some(p=>getA(p,'oneway')))parts.push('oneway');
+  const ed=uniq(p=>[getA(p,'edgeL'),getA(p,'edgeR')].filter(e=>e!=='none')); if(ed.length)parts.push('edge '+ed.join('/'));
+  const sf=uniq(p=>getA(p,'surface')!=='smooth'?[getA(p,'surface')]:[]); if(sf.length)parts.push(sf.join('/'));
+  const nf=r.points.reduce((a,p)=>a+getA(p,'features').length,0); if(nf)parts.push(nf+' feat');
+  if(pts.some(p=>getA(p,'signs')==='off'))parts.push('signs off');
+  if(r.points.some(p=>p.bridge))parts.push('bridge');
+  return parts.join(' · ');
+}
 function sampleRoad(rd,step){            // uniform Catmull-Rom; positions in map px
   const P=rd.points,n=P.length,out={x:[],z:[],seg:[],t:[]};
   if(n===0)return out;
@@ -482,14 +579,20 @@ function findSegment(mx,my){
 }
 function roadDown(e,mx,my){
   const before=snap(), hit=findPoint(mx,my);
-  if(hit){if(hit.ri!==selRoad)drawing=false;selRoad=hit.ri;selPt=hit.pi;
-    dragging={before,moved:false};refreshRoadUI();needDraw=true;return;}
+  if(hit){
+    if(hit.ri!==selRoad)drawing=false;
+    const same=hit.ri===selRoad&&selPt>=0; if(same)syncSel(); selRoad=hit.ri;
+    if(e.shiftKey&&same){selPts=new Set();for(let i=Math.min(selAnch,hit.pi);i<=Math.max(selAnch,hit.pi);i++)selPts.add(i);selPt=hit.pi;}   // range from the anchor
+    else if((e.ctrlKey||e.metaKey)&&same){selPts.has(hit.pi)?selPts.delete(hit.pi):selPts.add(hit.pi);selPt=selPts.has(hit.pi)?hit.pi:(selPts.size?[...selPts][0]:-1);selAnch=hit.pi;} // toggle
+    else{selPt=hit.pi;selPts=new Set([hit.pi]);selAnch=hit.pi;dragging={before,moved:false};}
+    selOwner=selPt;selOwnerRoad=selRoad;
+    refreshRoadUI();needDraw=true;return;}
   if(e.detail>=2&&drawing){finishRoad();return;}
   const seg=drawing?null:findSegment(mx,my);
-  if(seg){selRoad=seg.ri;selPt=seg.seg+1;roads[seg.ri].points.splice(seg.seg+1,0,{x:clamp(mx/N,0,1),z:clamp(my/N,0,1),bridge:false});
+  if(seg){selRoad=seg.ri;selPt=seg.seg+1;const np={x:clamp(mx/N,0,1),z:clamp(my/N,0,1),bridge:false};inheritSeg({points:[roads[seg.ri].points[seg.seg],np]},0,1);roads[seg.ri].points.splice(seg.seg+1,0,np);
     dragging={before,moved:true};refreshRoadUI();needDraw=true;return;}
   if(!drawing||selRoad<0){roads.push({id:nextRoadId++,width:8,points:[]});selRoad=roads.length-1;drawing=true;}
-  const rd=roads[selRoad]; rd.points.push({x:clamp(mx/N,0,1),z:clamp(my/N,0,1),bridge:false}); selPt=rd.points.length-1;
+  const rd=roads[selRoad]; rd.points.push({x:clamp(mx/N,0,1),z:clamp(my/N,0,1),bridge:false}); selPt=rd.points.length-1; if(rd.points.length>=3)inheritSeg(rd,rd.points.length-3,rd.points.length-2);
   commitRoads(before); needDraw=true;
 }
 function finishRoad(){
@@ -760,10 +863,17 @@ function fillExportRegion(b,x0,y0,x1,y1){          // pixel rect, x1/y1 exclusiv
     if(b.bc){b.bc[i*3]=CR[bi];b.bc[i*3+1]=CG[bi];b.bc[i*3+2]=CB[bi];}
   }
 }
+const META_NOTE=' Optional per-point metadata, written only when not default: type (country|city|highway), oneway, edgeL/edgeR (none|fence|guardrail|barrier|lamps; left/right looking forward along the point order), surface (smooth|worn|potholes|gravel), signs (auto|off) apply from this point to the next; features[] (crosswalk|bump|rumble|roadworks) apply at the point.';
 const ROADS_NOTE='nx,nz normalized 0..1 edge-to-edge; x,z world metres (x=nx*worldSize, z=nz*worldSize); y terrain height metres. bridge=true: segment to the NEXT point is a bridge. Curve: uniform Catmull-Rom through points.';
 function roadsJson(){
-  return {formatVersion:1,note:ROADS_NOTE,
-    roads:roads.map(r=>({id:r.id,widthMeters:r.width,points:r.points.map(p=>({nx:p.x,nz:p.z,x:p.x*S.world,y:heightAt(p.x*N,p.z*N)*S.maxH,z:p.z*S.world,bridge:!!p.bridge}))}))};
+  let meta=false;
+  const out={formatVersion:1,note:ROADS_NOTE,
+    roads:roads.map(r=>({id:r.id,widthMeters:r.width,points:r.points.map(p=>{
+      const o={nx:p.x,nz:p.z,x:p.x*S.world,y:heightAt(p.x*N,p.z*N)*S.maxH,z:p.z*S.world,bridge:!!p.bridge};
+      for(const k of NODE_KEYS){const v=getA(p,k);if(k==='features'?v.length:v!==NODE_DEFAULTS[k]){o[k]=k==='features'?FEATURES.filter(f=>v.includes(f)):v;meta=true;}}
+      return o;})}))};
+  if(meta)out.note=ROADS_NOTE+META_NOTE;   // old maps: note and file stay byte-identical
+  return out;
 }
 const MARKERS_NOTE='Pins placed in the editor. x,z,y world metres (same convention as roads.json; y = terrain height at export + yOffset); nx,nz normalized 0..1; yaw degrees, 0 = +X (east), +90 = +Z (south): forward = (cos yaw, sin yaw) in (x,z); radius metres (0 = point marker). tags are lowercase slugs [a-z0-9_-]; name is optional but unique when set. The loader recomputes y from its own ground.';
 function markersJson(){
@@ -772,7 +882,8 @@ function markersJson(){
 }
 const FILE_NAMES={height16:'heightmap16.png',heightRaw16:'heightmap.r16',splat0:'splat0.png',splat1:'splat1.png',biomeColor:'biome_color.png',water:'water.png',roads:'roads.json',markers:'markers.json'};
 function mapJson(){
-  return {formatVersion:1,N,worldSizeMeters:S.world,maxHeightMeters:S.maxH,cellSizeMeters:S.world/N,seaLevel:S.sea,seaLevelMeters:S.sea*S.maxH,
+  const mm={};if(S.driveSide!==MAP_DEFAULTS.driveSide)mm.driveSide=S.driveSide;if(S.signStyle!==MAP_DEFAULTS.signStyle)mm.signStyle=S.signStyle;   // only when not default
+  return {formatVersion:1,N,worldSizeMeters:S.world,maxHeightMeters:S.maxH,cellSizeMeters:S.world/N,seaLevel:S.sea,seaLevelMeters:S.sea*S.maxH,...mm,
     classes:CLASSES,
     files:FILE_NAMES,
     encodings:{
@@ -783,6 +894,7 @@ function mapJson(){
       pixelToWorld:'pixel (i,j) centre -> x=(i+0.5)*cellSizeMeters, z=(j+0.5)*cellSizeMeters; normalized u=x/worldSizeMeters'}};
 }
 async function buildExport(){
+  endStroke();
   const files=[], b=newExportBuffers(true);
   fillExportRegion(b,0,0,N,N);
   files.push({name:'heightmap16.png',data:await encodePNG(N,N,16,0,gray16Raw(b.h16,N))});
@@ -794,6 +906,7 @@ async function buildExport(){
   files.push({name:'roads.json',data:JSON.stringify(roadsJson(),null,1)});
   files.push({name:'markers.json',data:JSON.stringify(markersJson(),null,1)});
   files.push({name:'map.json',data:JSON.stringify(mapJson(),null,1)});
+  files.push({name:'map.tmap',data:serialize()});
   return files;
 }
 async function doExport(){
@@ -824,7 +937,7 @@ function serialize(){
   const layers=[],parts=[];let off=0;
   const add=(name,type,arr)=>{layers.push({name,type,offset:off,byteLength:arr.byteLength});parts.push(arr);off+=arr.byteLength;};
   add('height','f32',H);add('water','f32',WL);WC.forEach((a,c)=>add('weight'+c,'u8',a));
-  const header={format:'tmap',version:1,N,settings:{worldSizeMeters:S.world,maxHeightMeters:S.maxH,seaLevel:S.sea},roads,nextRoadId,markers,nextMarkerId,layers};
+  const header={format:'tmap',version:1,N,settings:{worldSizeMeters:S.world,maxHeightMeters:S.maxH,seaLevel:S.sea,...(S.driveSide!==MAP_DEFAULTS.driveSide?{driveSide:S.driveSide}:{}),...(S.signStyle!==MAP_DEFAULTS.signStyle?{signStyle:S.signStyle}:{})},roads,nextRoadId,markers,nextMarkerId,layers};
   let hb=new TextEncoder().encode(JSON.stringify(header));
   const hl=(hb.length+3)&~3, out=new Uint8Array(8+hl+off);
   out.set([84,77,65,80],0);new DataView(out.buffer).setUint32(4,hl,true);out.fill(32,8,8+hl);out.set(hb,8);
@@ -838,6 +951,7 @@ function loadProject(buf){
   if(![512,1024,2048].includes(hd.N))throw new Error('Unsupported size '+hd.N);
   allocate(hd.N);
   S.world=hd.settings.worldSizeMeters;S.maxH=hd.settings.maxHeightMeters;S.sea=hd.settings.seaLevel;
+  S.driveSide=DRIVE_SIDES.includes(hd.settings.driveSide)?hd.settings.driveSide:MAP_DEFAULTS.driveSide;S.signStyle=SIGN_STYLES.includes(hd.settings.signStyle)?hd.settings.signStyle:MAP_DEFAULTS.signStyle;
   const base=8+hl, L={};hd.layers.forEach(l=>L[l.name]=l);
   const f32=l=>new Float32Array(buf.slice(base+l.offset,base+l.offset+l.byteLength));
   H=f32(L.height);WL=f32(L.water);
@@ -851,7 +965,7 @@ function afterMapReplaced(){
   if(pv)pv.invalidateAll();
 }
 function newMap(n,world,maxH,sea,base){
-  allocate(n);S.world=world;S.maxH=maxH;S.sea=sea;H.fill(base);afterMapReplaced();
+  allocate(n);S.world=world;S.maxH=maxH;S.sea=sea;S.driveSide=MAP_DEFAULTS.driveSide;S.signStyle=MAP_DEFAULTS.signStyle;H.fill(base);afterMapReplaced();
 }
 async function saveProject(){
   endStroke();const data=serialize();
@@ -960,8 +1074,9 @@ function buildUI(){
   wi.onchange=()=>{if(selRoad<0)return;const b=snap();roads[selRoad].width=clamp(+wi.value||8,1,100);commitRoads(b);needDraw=true;};
   rd.append(h('div',{className:'row'},h('label',{textContent:'Width (m)'}),wi));
   const bi=h('input',{type:'checkbox',id:'ptBridge'});
-  bi.onchange=()=>{if(selRoad<0||selPt<0)return;const b=snap();roads[selRoad].points[selPt].bridge=bi.checked;commitRoads(b);needDraw=true;};
+  bi.onchange=()=>editSel(p=>{p.bridge=bi.checked;});
   rd.append(h('div',{className:'row'},h('label',{textContent:'Pt bridge'}),bi,h('span',{className:'small',textContent:'segment to next pt'})));
+  buildNodeUI(rd);
   slider(rd,'shoulder','Shoulder (m)',0,60,1,opts.shoulder,v=>opts.shoulder=v);
   slider(rd,'smoothM','Profile smooth (m)',0,200,5,opts.smoothM,v=>opts.smoothM=v);
   rd.append(h('button',{textContent:'Bake roads into terrain',onclick:bakeRoads}));
@@ -973,6 +1088,8 @@ function buildUI(){
   p3.append(h('div',{className:'small',textContent:'1.0x = true scale (same as the game).'}));
   checkbox(p3,'Water',true,v=>{if(pv)pv.setToggle('water',v);});
   checkbox(p3,'Roads',true,v=>{if(pv)pv.setToggle('roads',v);});
+  checkbox(p3,'Road edges (fence, rails, lamps...)',true,v=>{if(pv)pv.setToggle('edges',v);});
+  checkbox(p3,'Warning signs',true,v=>{if(pv)pv.setToggle('signs',v);});
   checkbox(p3,'Wireframe',false,v=>{if(pv)pv.setToggle('wire',v);});
   p3.append(h('div',{className:'small',textContent:'Paint in the 2D view; the 3D view is orbit-only (drag = orbit, right-drag = pan, wheel = zoom).'}));
   const vw=section(R,'View');
@@ -992,18 +1109,56 @@ function buildUI(){
   mh.onchange=()=>{S.maxH=Math.max(10,+mh.value||200);fullRender();setModified();metaChanged();};
   mp.append(h('div',{className:'row'},h('label',{textContent:'World size (m)'}),ws),h('div',{className:'row'},h('label',{textContent:'Max height (m)'}),mh),
     h('div',{id:'mInfo',className:'small'}));
+  const sel=(id,list,key,label)=>{const s=h('select',{id});list.forEach(v=>s.append(h('option',{value:v,textContent:v})));s.onchange=()=>{S[key]=s.value;setModified();metaChanged();};mp.append(h('div',{className:'row'},h('label',{textContent:label}),s));};
+  sel('mDrive',DRIVE_SIDES,'driveSide','Drive side');sel('mSigns',SIGN_STYLES,'signStyle','Sign style');
+  mp.append(h('div',{className:'small',textContent:'Drive side: warning signs stand on the driver\'s edge. Sign style: us = yellow diamonds, eu = red-bordered triangles.'}));
   setTool('raise');
 }
 function syncMapUI(){
   $('mWorld').value=S.world;$('mMax').value=S.maxH;ctl.sea.set(S.sea);
   $('mInfo').textContent=N+' x '+N+' px, '+(S.world/N).toFixed(2)+' m/px';
+  $('mDrive').value=S.driveSide;$('mSigns').value=S.signStyle;
 }
 function refreshRoadUI(){
   const l=$('roadlist'); if(!l)return; l.textContent='';
-  roads.forEach((r,i)=>{const d=h('div',{textContent:'Road #'+r.id+'  ('+r.points.length+' pts, '+r.width+' m)'});
+  roads.forEach((r,i)=>{const sm=roadSummary(r),d=h('div',{textContent:'Road #'+r.id+'  ('+r.points.length+' pts, '+r.width+' m)'+(sm?'  '+sm:''),title:sm||'plain country road'});
     if(i===selRoad)d.className='on';d.onclick=()=>{drawing=false;selRoad=i;selPt=-1;refreshRoadUI();needDraw=true;};l.append(d);});
   const r=roads[selRoad]; $('rdWidth').value=r?r.width:8;
   const p=r&&r.points[selPt]; $('ptBridge').checked=!!(p&&p.bridge); $('ptBridge').disabled=!p;
+  refreshNodeUI();
+}
+// ---- "Road node" inspector: edits every selected point (shift-click = range from the anchor, ctrl-click = toggle) ----
+const nui={};
+function buildNodeUI(parent){
+  const box=h('div',{id:'nodebox'});parent.append(box);nui.box=box;
+  box.append(h('div',{className:'small',style:'margin-top:8px;font-weight:600',textContent:'ROAD NODE'}),nui.info=h('div',{className:'small'}));
+  const selectRow=(k,label,list)=>{
+    const s=h('select');s.append(h('option',{value:'',textContent:'(mixed)',hidden:true}));list.forEach(v=>s.append(h('option',{value:v,textContent:v})));
+    s.onchange=()=>{if(s.value!=='')editSel(p=>setA(p,k,s.value));};nui[k]=s;box.append(h('div',{className:'row'},h('label',{textContent:label}),s));};
+  selectRow('type','Type',ROAD_TYPES);
+  const ow=h('input',{type:'checkbox'});ow.onchange=()=>editSel(p=>setA(p,'oneway',ow.checked));nui.oneway=ow;
+  box.append(h('div',{className:'row'},h('label',{textContent:'One-way'}),ow,h('span',{className:'small',textContent:'direction = point order'})));
+  selectRow('edgeL','Left edge',EDGE_TYPES);selectRow('edgeR','Right edge',EDGE_TYPES);selectRow('surface','Surface',SURFACES);selectRow('signs','Warn signs',SIGN_MODES);
+  nui.feat={};box.append(h('div',{className:'small',textContent:'Features at this node'}));
+  const fr=h('div',{className:'chips'});box.append(fr);
+  for(const f of FEATURES){const c=h('input',{type:'checkbox'});c.onchange=()=>editSel(p=>{const s=new Set(getA(p,'features'));c.checked?s.add(f):s.delete(f);setA(p,'features',[...s]);});
+    nui.feat[f]=c;fr.append(h('label',{className:'small',title:FEAT_UI[f][2],style:'display:flex;gap:3px;align-items:center;margin-right:8px'},c,f==='bump'?'speed bump':f));}
+  box.append(h('div',{className:'row'},h('button',{textContent:'Apply to whole road',title:'copy the primary point\'s type, one-way, edges, surface and signs to every point',onclick:()=>applySegAttrs(0)}),
+    h('button',{textContent:'From here to end',onclick:()=>applySegAttrs(selPt)})));
+  box.append(h('div',{className:'small',textContent:'Left/right = looking forward along the point order. Type/one-way/edges/surface/signs apply from this point to the NEXT one (the last point\'s are ignored); features apply at the point. Shift-click = select range, Ctrl-click = toggle.'}),
+    h('div',{className:'row'},h('button',{textContent:'Auto-set type from city paint',title:'Selected road: segments whose midpoint is on city-class paint (>50%) become type city; the others stay unchanged. One undo step.',onclick:autoTypeFromCityPaint})),
+    h('div',{className:'small',textContent:'City = kerbs + footpaths + signals at junctions, highway = lanes + median barrier (see the 3D preview). Edge objects on city segments stand outside the footpath.'}));
+}
+function refreshNodeUI(){
+  if(!nui.box)return;
+  const idx=syncSel(),rd=roads[selRoad];
+  nui.box.style.display=idx.length?'':'none'; if(!idx.length)return;
+  const pts=idx.map(i=>rd.points[i]);
+  nui.info.textContent=idx.length===1?'Point '+(idx[0]+1)+' of '+rd.points.length+(idx[0]===rd.points.length-1?' (last: segment attributes unused)':''):idx.length+' points selected';
+  for(const k of SEG_KEYS){const vs=new Set(pts.map(p=>getA(p,k)));
+    if(k==='oneway'){nui.oneway.indeterminate=vs.size>1;nui.oneway.checked=vs.size===1&&[...vs][0]===true;}
+    else nui[k].value=vs.size===1?[...vs][0]:'';}
+  for(const f of FEATURES){const n=pts.filter(p=>getA(p,'features').includes(f)).length;nui.feat[f].indeterminate=n>0&&n<pts.length;nui.feat[f].checked=n===pts.length;}
 }
 
 // =====================================================================================
@@ -1023,7 +1178,7 @@ cv.addEventListener('pointerdown',e=>{
   startStroke(e,mx,my);
 });
 cv.addEventListener('pointermove',e=>{
-  const [sx,sy]=evPos(e),[mx,my]=toMapPt(sx,sy); hover={sx,sy,mx,my};needDraw=true;
+  const [sx,sy]=evPos(e),[mx,my]=toMapPt(sx,sy); hover={sx,sy,mx,my};needDraw=true;badgeTip(sx,sy);
   if(pan){view.ox=pan.ox+e.clientX-pan.sx;view.oy=pan.oy+e.clientY-pan.sy;}
   else if(mDrag){markerMove(e,mx,my);}
   else if(dragging&&selRoad>=0&&selPt>=0){const p=roads[selRoad].points[selPt];p.x=clamp(mx/N,0,1);p.z=clamp(my/N,0,1);dragging.moved=true;metaChanged();}
@@ -1145,7 +1300,7 @@ buildUI();
 newMap(1024,2000,200,0.1,0.2);
 fitView();
 pv=createPreview($('pv'),{
-  info:mapJson,newBuffers:()=>newExportBuffers(false),fill:(b,r)=>fillExportRegion(b,r.x0,r.y0,r.x1,r.y1),roads:roadsJson,markers:markersJson,
+  info:mapJson,newBuffers:()=>newExportBuffers(false),fill:(b,r)=>fillExportRegion(b,r.x0,r.y0,r.x1,r.y1),roads:roadsJson,markers:markersJson,onRoadsRebuilt:()=>{needDraw=true;},
 });
 pv.setMarkersVisible(view.markers);
 setMode('paint');
@@ -1163,4 +1318,5 @@ window.__ed={
   setTool,undo,redo,bakeRoads,autoPaint,buildExport,serialize,loadProject,newMap,setMode,mapJson,roadsJson,markersJson,newExportBuffers,fillExportRegion,
   get undoLen(){return undoStack.length;},get redoLen(){return redoStack.length;},toast,selectMarker:i=>{selMarker=i;markersVer++;refreshMarkerUI();},fitView,
   tick:()=>({needDraw,dirty:!!dirty}),
+  getA,setA,selectPoints:(ri,list)=>{selRoad=ri;selPt=list[list.length-1];selPts=new Set(list);selAnch=list[0];selOwner=selPt;selOwnerRoad=ri;refreshRoadUI();needDraw=true;},applySegAttrs,editSel,get selected(){return syncSel();},roadSummary,commitRoads,snap,refreshRoadUI,metaChanged,
 };

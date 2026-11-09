@@ -1,0 +1,57 @@
+{
+ "version": 1,
+ "note": "roundabout marker forces a roundabout at the V2/H1 crossing; junction_plain forces a plain patch at the V1/O1 T junction (junction styles: see mapLoader.js).",
+ "markers": [
+  {
+   "id": 1,
+   "name": "city_roundabout",
+   "tags": [
+    "roundabout"
+   ],
+   "color": "#30a0ff",
+   "x": 302,
+   "z": 152,
+   "y": 27.935927078965438,
+   "nx": 0.302,
+   "nz": 0.152,
+   "yaw": 0,
+   "radius": 0,
+   "props": {},
+   "yOffset": 0
+  },
+  {
+   "id": 2,
+   "name": "plain_junction",
+   "tags": [
+    "junction_plain"
+   ],
+   "color": "#ffd400",
+   "x": 152,
+   "z": 222,
+   "y": 27.900916456855114,
+   "nx": 0.152,
+   "nz": 0.222,
+   "yaw": 0,
+   "radius": 0,
+   "props": {},
+   "yOffset": 0
+  },
+  {
+   "id": 3,
+   "name": "player_start",
+   "tags": [
+    "spawn"
+   ],
+   "color": "#ff3b30",
+   "x": 80,
+   "z": 147,
+   "y": 27.392952162966353,
+   "nx": 0.08,
+   "nz": 0.147,
+   "yaw": 0,
+   "radius": 0,
+   "props": {},
+   "yOffset": 0
+  }
+ ]
+}

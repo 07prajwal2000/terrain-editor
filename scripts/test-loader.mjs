@@ -1,5 +1,5 @@
-// Node check of the map loader: `npm run test:loader` (sample) or `node scripts/test-loader.mjs --synth 2048` (timing).
-// Asserts: PNG decoder is bit-exact, mesh vertices sit on heightAt, Rapier heightfield orientation, water agreement.
+// Node check of the map loader: `npm run test:loader` (sample), `--map <dir>` (a map folder), `--synth <N>` (synthetic timing map).
+// Asserts: PNG decoder is bit-exact, mesh vertices sit on heightAt, Rapier heightfield orientation, water agreement; --map junctions adds junction tests.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -65,6 +65,9 @@ const t0 = performance.now();
 const map = await loadMap('/maps/x/', { THREE, RAPIER, physicsWorld: world, physicsResolution: 512 });
 console.log(`loadMap total ${(performance.now() - t0).toFixed(0)} ms`, Object.fromEntries(Object.entries(map.info.loadMs).map(([k, v]) => [k, Math.round(v)])));
 const { N, worldSize: W, cellSize: c, maxHeight } = map.info;
+const ab = map.roadDetail.autoBridges, abSkip = map.roadDetail.autoBridgeSkipped;
+console.log(`     auto bridges over water: ${ab.length} (${abSkip.length} skipped at junctions)`, ab.map((b) => `road ${b.roadId} s ${b.s0.toFixed(0)}..${b.s1.toFixed(0)} ${b.reason} deck ${b.deckY0.toFixed(1)}..${b.maxY.toFixed(1)}`).join('; '));
+assert(map.roads.every((r) => r.autoBridges.every((b) => Number.isFinite(b.s0) && b.s1 > b.s0 && b.deckY0 > -1e9)), 'auto bridge spans well formed');
 
 // 1. decoder exactness vs .r16 (same values by editor contract) -- sample only
 if (dir === path.resolve('public/maps/sample')) {

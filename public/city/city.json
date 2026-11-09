@@ -1,0 +1,1993 @@
+{
+ "assets": [
+  {
+   "name": "Brick_90Angle_L",
+   "category": "wall",
+   "tris": 18,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    0.71,
+    3,
+    0.7
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_90Angle_R",
+   "category": "wall",
+   "tris": 18,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    0.71,
+    3,
+    0.7
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_BottomTrim",
+   "category": "wall",
+   "tris": 52,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.23
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Column_RedBricks",
+   "category": "column",
+   "tris": 380,
+   "height": 3,
+   "radius": 0.61,
+   "size": [
+    0.53,
+    3,
+    0.72
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Column_Small",
+   "category": "column",
+   "tris": 32,
+   "height": 3,
+   "radius": 0.25,
+   "size": [
+    0.25,
+    3,
+    0.35
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Column_TrimBricks",
+   "category": "column",
+   "tris": 298,
+   "height": 3,
+   "radius": 0.52,
+   "size": [
+    0.65,
+    3,
+    0.64
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_CornerColumn_Bottom",
+   "category": "column",
+   "tris": 80,
+   "height": 3,
+   "radius": 1.03,
+   "size": [
+    1.26,
+    3,
+    1.26
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_CornerColumn_Cap",
+   "category": "column",
+   "tris": 108,
+   "height": 3.01,
+   "radius": 1.03,
+   "size": [
+    1.26,
+    3.01,
+    1.26
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_CornerColumn_CapShort",
+   "category": "column",
+   "tris": 60,
+   "height": 3.04,
+   "radius": 1.03,
+   "size": [
+    1.26,
+    3.04,
+    1.26
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_CornerColumn_Center",
+   "category": "column",
+   "tris": 32,
+   "height": 3,
+   "radius": 0.97,
+   "size": [
+    1.14,
+    3,
+    1.14
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_CornerColumn_Center_Half",
+   "category": "column",
+   "tris": 32,
+   "height": 2,
+   "radius": 0.97,
+   "size": [
+    1.14,
+    2,
+    1.14
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_CornerColumn_Top",
+   "category": "column",
+   "tris": 80,
+   "height": 3,
+   "radius": 1.03,
+   "size": [
+    1.26,
+    3,
+    1.26
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Corner_Plain",
+   "category": "wall",
+   "tris": 12,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    2,
+    3,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_HalfColumn_Bottom",
+   "category": "column",
+   "tris": 84,
+   "height": 3,
+   "radius": 0.55,
+   "size": [
+    1.11,
+    3,
+    0.28
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_HalfColumn_Center",
+   "category": "column",
+   "tris": 48,
+   "height": 3,
+   "radius": 0.47,
+   "size": [
+    0.93,
+    3,
+    0.21
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_HalfColumn_Top",
+   "category": "column",
+   "tris": 84,
+   "height": 3,
+   "radius": 0.55,
+   "size": [
+    1.11,
+    3,
+    0.28
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_HalfTrim",
+   "category": "wall",
+   "tris": 24,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.22
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Inset",
+   "category": "wall",
+   "tris": 72,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    4,
+    3,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Inset_Window",
+   "category": "window",
+   "tris": 488,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    4,
+    3,
+    0.37
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Inset_Window_Curved",
+   "category": "window",
+   "tris": 656,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    4,
+    3,
+    0.37
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Inset_Window_Curved_Small",
+   "category": "window",
+   "tris": 568,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    4,
+    3,
+    0.34
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_InteriorWall_1",
+   "category": "wall",
+   "tris": 2,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_InteriorWall_3",
+   "category": "wall",
+   "tris": 4,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_InteriorWall_4",
+   "category": "wall",
+   "tris": 4,
+   "height": 4,
+   "radius": 1,
+   "size": [
+    2,
+    4,
+    0
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Ornament_Horizontal",
+   "category": "wall",
+   "tris": 312,
+   "height": 0.15,
+   "radius": 1,
+   "size": [
+    2,
+    0.15,
+    0.05
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Plain_1",
+   "category": "wall",
+   "tris": 4,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Plain_3",
+   "category": "wall",
+   "tris": 6,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Plain_3_noWear",
+   "category": "wall",
+   "tris": 6,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Plain_4",
+   "category": "wall",
+   "tris": 8,
+   "height": 4,
+   "radius": 1,
+   "size": [
+    2,
+    4,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_RedWhite_DoubleWindow",
+   "category": "window",
+   "tris": 794,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    4,
+    3,
+    0.28
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_TopTrim",
+   "category": "wall",
+   "tris": 16,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_TopTrim_90Angle_L",
+   "category": "wall",
+   "tris": 38,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    0.71,
+    3,
+    0.7
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_TopTrim_90Angle_R",
+   "category": "wall",
+   "tris": 38,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    0.71,
+    3,
+    0.7
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_TopTrim_Corner",
+   "category": "wall",
+   "tris": 24,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    2,
+    3,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Window_CurvedDouble",
+   "category": "window",
+   "tris": 1137,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    4,
+    3,
+    0.26
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Window_Square_Single",
+   "category": "window",
+   "tris": 190,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.27
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Window_Trim",
+   "category": "window",
+   "tris": 652,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.3
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Brick_Window_Trim_Single",
+   "category": "window",
+   "tris": 426,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.28
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Building_Large_2",
+   "category": "building",
+   "tris": 45122,
+   "height": 28,
+   "radius": 16.32,
+   "size": [
+    20.64,
+    28,
+    16.64
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Building_Medium_2_001",
+   "category": "building",
+   "tris": 25612,
+   "height": 25,
+   "radius": 12.49,
+   "size": [
+    15.06,
+    25,
+    13.06
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Building_Small_1",
+   "category": "building",
+   "tris": 18344,
+   "height": 17.01,
+   "radius": 12.23,
+   "size": [
+    12.46,
+    17.01,
+    14.54
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Brick_90Angle_L",
+   "category": "cornice",
+   "tris": 29,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0.9
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Brick_90Angle_R",
+   "category": "cornice",
+   "tris": 29,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0.9
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Brick_Center",
+   "category": "cornice",
+   "tris": 6,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0.4
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Brick_L",
+   "category": "cornice",
+   "tris": 6,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0.4
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Brick_R",
+   "category": "cornice",
+   "tris": 6,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0.4
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Metal_90Angle_L",
+   "category": "cornice",
+   "tris": 90,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0.7
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Metal_90Angle_R",
+   "category": "cornice",
+   "tris": 90,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0.7
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Metal_Center",
+   "category": "cornice",
+   "tris": 30,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Metal_L",
+   "category": "cornice",
+   "tris": 72,
+   "height": 1,
+   "radius": 1.1,
+   "size": [
+    2.1,
+    1,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Metal_R",
+   "category": "cornice",
+   "tris": 72,
+   "height": 1,
+   "radius": 1.1,
+   "size": [
+    2.1,
+    1,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Trim_90Angle_L",
+   "category": "cornice",
+   "tris": 160,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    1.13
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Trim_90Angle_R",
+   "category": "cornice",
+   "tris": 160,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    1.13
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Trim_Center",
+   "category": "cornice",
+   "tris": 112,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0.63
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Trim_L",
+   "category": "cornice",
+   "tris": 116,
+   "height": 1,
+   "radius": 1.53,
+   "size": [
+    2.53,
+    1,
+    0.63
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Cornice_Trim_R",
+   "category": "cornice",
+   "tris": 116,
+   "height": 1,
+   "radius": 1.53,
+   "size": [
+    2.53,
+    1,
+    0.63
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_ArrowForwardLeft",
+   "category": "decal",
+   "tris": 10,
+   "height": -0.13,
+   "radius": 1.37,
+   "size": [
+    1.78,
+    -0.13,
+    2.67
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_ArrowForwardRight",
+   "category": "decal",
+   "tris": 10,
+   "height": -0.13,
+   "radius": 1.37,
+   "size": [
+    1.78,
+    -0.13,
+    2.67
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_ArrowStraight",
+   "category": "decal",
+   "tris": 2,
+   "height": -0.13,
+   "radius": 1.18,
+   "size": [
+    0.94,
+    -0.13,
+    2.37
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_ArrowTurnLeft",
+   "category": "decal",
+   "tris": 4,
+   "height": -0.13,
+   "radius": 1.27,
+   "size": [
+    1.99,
+    -0.13,
+    2.5
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_ArrowTurnRight",
+   "category": "decal",
+   "tris": 4,
+   "height": -0.13,
+   "radius": 1.27,
+   "size": [
+    1.99,
+    -0.13,
+    2.5
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_Bikelane",
+   "category": "decal",
+   "tris": 8,
+   "height": -0.13,
+   "radius": 1.75,
+   "size": [
+    2.97,
+    -0.13,
+    2.82
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_BrokenLine_Straight",
+   "category": "decal",
+   "tris": 2,
+   "height": -0.13,
+   "radius": 3,
+   "size": [
+    6,
+    -0.13,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_Crosswalk",
+   "category": "decal",
+   "tris": 2,
+   "height": -0.15,
+   "radius": 2.71,
+   "size": [
+    4.54,
+    -0.15,
+    5.43
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_Crosswalk_Wide",
+   "category": "decal",
+   "tris": 4,
+   "height": -0.15,
+   "radius": 5.71,
+   "size": [
+    4.67,
+    -0.15,
+    11.42
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_Curve_2Lane_Stripe",
+   "category": "decal",
+   "tris": 32,
+   "height": -0.15,
+   "radius": 8.8,
+   "size": [
+    8.8,
+    -0.15,
+    8.8
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_Curve_4LaneShort",
+   "category": "decal",
+   "tris": 48,
+   "height": -0.15,
+   "radius": 9.1,
+   "size": [
+    9.1,
+    -0.15,
+    9.1
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_Curve_4LaneShort_DoubleYellow",
+   "category": "decal",
+   "tris": 48,
+   "height": -0.15,
+   "radius": 9.2,
+   "size": [
+    9.2,
+    -0.15,
+    9.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_Curve_4LaneShort_Stripe",
+   "category": "decal",
+   "tris": 48,
+   "height": -0.15,
+   "radius": 14.8,
+   "size": [
+    14.8,
+    -0.15,
+    14.8
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_DoubleYellow_Straight",
+   "category": "decal",
+   "tris": 2,
+   "height": -0.11,
+   "radius": 3,
+   "size": [
+    6,
+    -0.11,
+    0.39
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_Only",
+   "category": "decal",
+   "tris": 2,
+   "height": -0.13,
+   "radius": 1.45,
+   "size": [
+    2.9,
+    -0.13,
+    1.38
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_Slow",
+   "category": "decal",
+   "tris": 2,
+   "height": -0.13,
+   "radius": 1.47,
+   "size": [
+    2.94,
+    -0.13,
+    1.41
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Decal_Stop",
+   "category": "decal",
+   "tris": 2,
+   "height": -0.13,
+   "radius": 1.48,
+   "size": [
+    2.96,
+    -0.13,
+    1.52
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "DoorFrame_Metal_Single",
+   "category": "door",
+   "tris": 239,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "DoorFrame_Trim",
+   "category": "door",
+   "tris": 860,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.23
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "DoorFrame_Wooden",
+   "category": "door",
+   "tris": 438,
+   "height": 3,
+   "radius": 1.15,
+   "size": [
+    2.3,
+    3,
+    0.48
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Door_1",
+   "category": "door",
+   "tris": 676,
+   "height": 2.2,
+   "radius": 1,
+   "size": [
+    1,
+    2.2,
+    0.26
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Door_2",
+   "category": "door",
+   "tris": 186,
+   "height": 2.2,
+   "radius": 1,
+   "size": [
+    1,
+    2.2,
+    0.21
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Door_3",
+   "category": "door",
+   "tris": 278,
+   "height": 2.2,
+   "radius": 1,
+   "size": [
+    1,
+    2.2,
+    0.19
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Entrance_Concrete_2x1",
+   "category": "ground",
+   "tris": 12,
+   "height": 1.01,
+   "radius": 1,
+   "size": [
+    2,
+    1.01,
+    1
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Entrance_Concrete_2x2",
+   "category": "ground",
+   "tris": 12,
+   "height": 1.01,
+   "radius": 1,
+   "size": [
+    2,
+    1.01,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Floor_2x2",
+   "category": "ground",
+   "tris": 4,
+   "height": 0,
+   "radius": 1,
+   "size": [
+    2,
+    0,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Floor_4x4",
+   "category": "ground",
+   "tris": 16,
+   "height": 0,
+   "radius": 2,
+   "size": [
+    4,
+    0,
+    4
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Floor_Inset",
+   "category": "ground",
+   "tris": 8,
+   "height": 0,
+   "radius": 1,
+   "size": [
+    2,
+    0,
+    1.33
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_Column_Bottom",
+   "category": "column",
+   "tris": 112,
+   "height": 3,
+   "radius": 0.28,
+   "size": [
+    0.57,
+    3,
+    0.57
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_Column_Center",
+   "category": "column",
+   "tris": 16,
+   "height": 3,
+   "radius": 0.25,
+   "size": [
+    0.5,
+    3,
+    0.5
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_Column_Small_Bottom",
+   "category": "column",
+   "tris": 112,
+   "height": 3,
+   "radius": 0.14,
+   "size": [
+    0.28,
+    3,
+    0.28
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_Column_Small_Center",
+   "category": "column",
+   "tris": 16,
+   "height": 3,
+   "radius": 0.12,
+   "size": [
+    0.25,
+    3,
+    0.25
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_Column_Small_Top",
+   "category": "column",
+   "tris": 120,
+   "height": 3,
+   "radius": 0.16,
+   "size": [
+    0.32,
+    3,
+    0.32
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_Column_Top",
+   "category": "column",
+   "tris": 120,
+   "height": 3,
+   "radius": 0.32,
+   "size": [
+    0.64,
+    3,
+    0.64
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_FirstFloor_Wall",
+   "category": "wall",
+   "tris": 36,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.24
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_FirstFloor_Wall_1",
+   "category": "wall",
+   "tris": 8,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0.24
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_FirstFloor_Window",
+   "category": "window",
+   "tris": 156,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.26
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_FullWindow",
+   "category": "window",
+   "tris": 210,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.23
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_Plain_1",
+   "category": "wall",
+   "tris": 6,
+   "height": 1,
+   "radius": 1,
+   "size": [
+    2,
+    1,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_Plain_3",
+   "category": "wall",
+   "tris": 18,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_Window",
+   "category": "window",
+   "tris": 578,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    4,
+    3,
+    0.22
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Metal_Window_Half",
+   "category": "window",
+   "tris": 312,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.23
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Prop_ACUnit",
+   "category": "prop",
+   "tris": 136,
+   "height": 0.6,
+   "radius": 0.48,
+   "size": [
+    0.89,
+    0.6,
+    0.35
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Prop_Bollard",
+   "category": "prop",
+   "tris": 190,
+   "height": 0.89,
+   "radius": 0.11,
+   "size": [
+    0.22,
+    0.89,
+    0.23
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Prop_Drain",
+   "category": "prop",
+   "tris": 10,
+   "height": 0.04,
+   "radius": 0.29,
+   "size": [
+    0.59,
+    0.04,
+    0.59
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Prop_ManholeCover",
+   "category": "prop",
+   "tris": 118,
+   "height": 0.02,
+   "radius": 0.46,
+   "size": [
+    0.93,
+    0.02,
+    0.93
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Prop_Planter_Single",
+   "category": "prop",
+   "tris": 118,
+   "height": 0.6,
+   "radius": 1,
+   "size": [
+    2,
+    0.6,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_2x2",
+   "category": "roof",
+   "tris": 2,
+   "height": -0.2,
+   "radius": 1,
+   "size": [
+    2,
+    -0.2,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_2x2_90Angle_Center",
+   "category": "roof",
+   "tris": 2,
+   "height": -0.2,
+   "radius": 1,
+   "size": [
+    2,
+    -0.2,
+    1.6
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_2x2_90Angle_L",
+   "category": "roof",
+   "tris": 6,
+   "height": -0.2,
+   "radius": 1,
+   "size": [
+    2,
+    -0.2,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_2x2_90Angle_R",
+   "category": "roof",
+   "tris": 6,
+   "height": -0.2,
+   "radius": 1,
+   "size": [
+    2,
+    -0.2,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_4x4",
+   "category": "roof",
+   "tris": 8,
+   "height": -0.2,
+   "radius": 2,
+   "size": [
+    4,
+    -0.2,
+    4
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_SlateCornice_Center",
+   "category": "roof",
+   "tris": 26,
+   "height": 3.2,
+   "radius": 2,
+   "size": [
+    2,
+    3.2,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_SlateCornice_Corner",
+   "category": "roof",
+   "tris": 76,
+   "height": 3.2,
+   "radius": 2,
+   "size": [
+    2.02,
+    3.2,
+    2.03
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_SlateCornice_InnerCorner",
+   "category": "roof",
+   "tris": 42,
+   "height": 3.2,
+   "radius": 2,
+   "size": [
+    2,
+    3.2,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_SlateCornice_Window_1",
+   "category": "roof",
+   "tris": 390,
+   "height": 3.2,
+   "radius": 2,
+   "size": [
+    2,
+    3.2,
+    2.12
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_Slate_Center",
+   "category": "roof",
+   "tris": 6,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    2,
+    3,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_Slate_Corner",
+   "category": "roof",
+   "tris": 44,
+   "height": 3.01,
+   "radius": 2,
+   "size": [
+    2.02,
+    3.01,
+    2.03
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_Slate_InnerCorner",
+   "category": "roof",
+   "tris": 10,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    2,
+    3,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Roof_Slate_Window_1",
+   "category": "roof",
+   "tris": 370,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    2,
+    3,
+    2.12
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Sidewalk_Corner_Flat_3m",
+   "category": "sidewalk",
+   "tris": 97,
+   "height": 0,
+   "radius": 1.51,
+   "size": [
+    3.01,
+    0,
+    3.01
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Sidewalk_Corner_Flat_3m_Stripe",
+   "category": "sidewalk",
+   "tris": 14,
+   "height": -0.15,
+   "radius": 1.9,
+   "size": [
+    3.4,
+    -0.15,
+    3.4
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Sidewalk_Corner_Round_3m",
+   "category": "sidewalk",
+   "tris": 177,
+   "height": 0,
+   "radius": 1.51,
+   "size": [
+    3.01,
+    0,
+    3.01
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Sidewalk_Corner_Round_3m_Stripe",
+   "category": "sidewalk",
+   "tris": 24,
+   "height": -0.15,
+   "radius": 1.9,
+   "size": [
+    3.4,
+    -0.15,
+    3.4
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Sidewalk_NoCurb_3m",
+   "category": "sidewalk",
+   "tris": 42,
+   "height": 0,
+   "radius": 1.5,
+   "size": [
+    3,
+    0,
+    3
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Sidewalk_Planter",
+   "category": "sidewalk",
+   "tris": 598,
+   "height": 0.51,
+   "radius": 0.99,
+   "size": [
+    1.97,
+    0.51,
+    1.77
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Sidewalk_Straight_3m",
+   "category": "sidewalk",
+   "tris": 60,
+   "height": 0,
+   "radius": 1.51,
+   "size": [
+    3,
+    0,
+    3.01
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Sidewalk_Straight_3m_Stripe",
+   "category": "sidewalk",
+   "tris": 2,
+   "height": -0.15,
+   "radius": 1.9,
+   "size": [
+    3,
+    -0.15,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Stairs_Entrance_Concrete",
+   "category": "ground",
+   "tris": 128,
+   "height": 1.01,
+   "radius": 1.99,
+   "size": [
+    2,
+    1.01,
+    1.99
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Stairs_Rails_Metal",
+   "category": "ground",
+   "tris": 564,
+   "height": 1.97,
+   "radius": 2.31,
+   "size": [
+    1.96,
+    1.97,
+    2.31
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Stairs_Rails_Metal_Straight_1",
+   "category": "ground",
+   "tris": 168,
+   "height": 1.97,
+   "radius": 1,
+   "size": [
+    1.94,
+    1.97,
+    1
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Stairs_Rails_Metal_Straight_2",
+   "category": "ground",
+   "tris": 320,
+   "height": 1.97,
+   "radius": 1,
+   "size": [
+    1.94,
+    1.97,
+    2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_2Lane",
+   "category": "street",
+   "tris": 220,
+   "height": 0,
+   "radius": 6,
+   "size": [
+    6,
+    0,
+    12
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_2Lane_noSidewalk",
+   "category": "street",
+   "tris": 16,
+   "height": -0.15,
+   "radius": 3,
+   "size": [
+    6,
+    -0.15,
+    6
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_4Lane",
+   "category": "street",
+   "tris": 252,
+   "height": 0,
+   "radius": 9,
+   "size": [
+    6,
+    0,
+    18
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_4Lane_noSidewalk",
+   "category": "street",
+   "tris": 12,
+   "height": -0.15,
+   "radius": 6,
+   "size": [
+    6,
+    -0.15,
+    12
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_4WayIntersection",
+   "category": "street",
+   "tris": 892,
+   "height": 0,
+   "radius": 12.33,
+   "size": [
+    24.67,
+    0,
+    24.67
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_Asphalt_6x6",
+   "category": "street",
+   "tris": 2,
+   "height": -0.15,
+   "radius": 3,
+   "size": [
+    6,
+    -0.15,
+    6
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_Asphalt_9x9",
+   "category": "street",
+   "tris": 2,
+   "height": -0.15,
+   "radius": 9,
+   "size": [
+    9,
+    -0.15,
+    9
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_Asphalt_Curve_2Lane",
+   "category": "street",
+   "tris": 48,
+   "height": -0.15,
+   "radius": 10,
+   "size": [
+    10,
+    -0.15,
+    10
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_Asphalt_Curve_4Lane_Short",
+   "category": "street",
+   "tris": 49,
+   "height": -0.15,
+   "radius": 16,
+   "size": [
+    16,
+    -0.15,
+    16
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_Curve_2Lane",
+   "category": "street",
+   "tris": 505,
+   "height": 0,
+   "radius": 12,
+   "size": [
+    12,
+    0,
+    12
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_Curve_2Lane_Curb",
+   "category": "street",
+   "tris": 224,
+   "height": 0,
+   "radius": 12,
+   "size": [
+    12,
+    0,
+    12
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_Curve_4LaneShort",
+   "category": "street",
+   "tris": 634,
+   "height": 0,
+   "radius": 18,
+   "size": [
+    18,
+    0,
+    18
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_Curve_4Lane_Short_Curb",
+   "category": "street",
+   "tris": 336,
+   "height": 0,
+   "radius": 18,
+   "size": [
+    18,
+    0,
+    18
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Street_TIntersection",
+   "category": "street",
+   "tris": 858,
+   "height": 0,
+   "radius": 12.33,
+   "size": [
+    24.67,
+    0,
+    21.33
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Trim_90Angle_TopCover",
+   "category": "wall",
+   "tris": 10,
+   "height": 0,
+   "radius": 1,
+   "size": [
+    2,
+    0,
+    0.7
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Trim_Column_Bottom",
+   "category": "column",
+   "tris": 216,
+   "height": 3,
+   "radius": 0.36,
+   "size": [
+    0.72,
+    3,
+    0.72
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Trim_Column_Center",
+   "category": "column",
+   "tris": 64,
+   "height": 3,
+   "radius": 0.34,
+   "size": [
+    0.67,
+    3,
+    0.67
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Trim_Column_Top",
+   "category": "column",
+   "tris": 216,
+   "height": 3,
+   "radius": 0.36,
+   "size": [
+    0.72,
+    3,
+    0.72
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Trim_Corner",
+   "category": "wall",
+   "tris": 68,
+   "height": 3,
+   "radius": 2,
+   "size": [
+    2.05,
+    3,
+    2.05
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Trim_FirstFloor_Wall",
+   "category": "wall",
+   "tris": 50,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.25
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Trim_FirstFloor_Window_001",
+   "category": "window",
+   "tris": 160,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.22
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Trim_FirstFloor_Window_Columns",
+   "category": "window",
+   "tris": 32,
+   "height": 2.93,
+   "radius": 1.07,
+   "size": [
+    2.15,
+    2.93,
+    0.09
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Trim_Plain_3",
+   "category": "wall",
+   "tris": 34,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.2
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Trim_Wall_Guard",
+   "category": "wall",
+   "tris": 32,
+   "height": 0.64,
+   "radius": 1,
+   "size": [
+    2,
+    0.64,
+    0.12
+   ],
+   "alphaCards": false
+  },
+  {
+   "name": "Trim_Window",
+   "category": "window",
+   "tris": 574,
+   "height": 3,
+   "radius": 1,
+   "size": [
+    2,
+    3,
+    0.24
+   ],
+   "alphaCards": false
+  }
+ ]
+}

@@ -7,6 +7,13 @@
     "dev": "vite",
     "build": "vite build",
     "test:loader": "node scripts/test-loader.mjs",
+    "test:roads": "node scripts/test-roads.mjs",
+    "test:city": "node scripts/test-city.mjs",
+    "city-map": "node scripts/make-city-test-map.mjs",
+    "nature": "node scripts/nature/build.mjs nature",
+    "city": "node scripts/nature/build.mjs city",
+    "test:bridges": "node scripts/test-bridges.mjs",
+    "test:ramps": "node scripts/test-ramps.mjs",
     "test:vehicles": "node scripts/test-vehicles.mjs",
     "cars": "node scripts/cars/run.mjs"
   },
@@ -15,6 +22,10 @@
     "three": "^0.187.0"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "sharp": "^0.35.5",
     "vite": "^8.3.7"
   }
 }

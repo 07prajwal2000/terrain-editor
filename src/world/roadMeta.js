@@ -20,6 +20,28 @@ export const SIGN_MODES = Object.freeze(['auto', 'off']);
 export const DRIVE_SIDES = Object.freeze(['right', 'left']);
 export const SIGN_STYLES = Object.freeze(['us', 'eu']);
 
+// Self-meetings: a road that crosses / touches / loops back onto ITSELF makes junctions too. Two parts of one road only count when their arc-length
+// separation is at least SELF_JUNCTION.SEP_WIDTHS * width + SEP_M metres (excludes neighbours on tight curves), and crossings / T-contacts whose acute
+// angle is below MIN_ANGLE_DEG degrees (hairpin legs lying nearly on top of each other) are ignored. An endpoint join (loop closing, last node on first) has no angle limit.
+export const SELF_JUNCTION = Object.freeze({ SEP_WIDTHS: 3, SEP_M: 10, MIN_ANGLE_DEG: 25 });
+export const JUNCTION_STYLES = Object.freeze(['junction', 'roundabout', 'signals', 'none']); // junctions.json 'style' values (+ map.junctions[i].style: all but 'none')
+// marker tag -> junction style forced by a marker within 15 m of a detected junction (junctions.json beats markers beats the defaults)
+export const MARKER_JUNCTION_TAGS = Object.freeze({ roundabout: 'roundabout', signals: 'signals', junction_plain: 'junction' });
+
+// City road type: kerb + footpath on both sides (metres). The footpath is KERB_W (kerb stone band) + FOOT_W wide, FOOT_SHIFT in total, and its top is
+// KERB_H above the road surface. Edge items (lamps etc.) on city segments stand FOOT_SHIFT further out. TAPER = length of the ramp that ends a footpath.
+export const CITY = Object.freeze({ KERB_H: 0.15, KERB_W: 0.15, FOOT_W: 2.5, TAPER: 1.2, BLEND: 3, CROSS_HALF: 1.9 });
+export const FOOT_SHIFT = CITY.KERB_W + CITY.FOOT_W;
+
+// Highway road type: hard shoulder SHOULDER_W each side, central barrier half width MEDIAN_HALF (two-way only), lanes ~LANE_W wide.
+// highwayLanes() is mirrored in the road shader (roads.js): keep both in sync.
+export const HIGHWAY = Object.freeze({ LANE_W: 3.6, SHOULDER_W: 2.5, MEDIAN_HALF: 0.3, MEDIAN_SHY: 0.4 });
+export function highwayLanes(hw, oneway) { // lanes PER DIRECTION (two-way) or in total (one-way), lane width, lateral offset of the first lane line from the centre
+  const m0 = oneway ? 0 : HIGHWAY.MEDIAN_HALF + HIGHWAY.MEDIAN_SHY, usable = oneway ? 2 * (hw - HIGHWAY.SHOULDER_W) : hw - HIGHWAY.SHOULDER_W - m0;
+  const lanes = Math.max(1, Math.floor(usable / HIGHWAY.LANE_W + 0.5));
+  return { lanes, laneW: usable / lanes, m0 };
+}
+
 export const NODE_DEFAULTS = Object.freeze({ type: 'country', oneway: false, edgeL: 'none', edgeR: 'none', surface: 'smooth', signs: 'auto' });
 export const MAP_DEFAULTS = Object.freeze({ driveSide: 'right', signStyle: 'us' });
 
