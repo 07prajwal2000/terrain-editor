@@ -3,3 +3,4 @@
 
 # Local subagent prompts
 /.prompts/
+node_modules/
