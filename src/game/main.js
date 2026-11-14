@@ -4,6 +4,8 @@
 //   ?scatter=0           disable the nature scatter (trees, bushes, rocks, grass: world/scatter.js)     ?scatterQuality=low|medium|high (default medium)
 //   ?scatterShadows=1    let near trees cast shadows (expensive)
 //   ?city=0              disable the city (procedural buildings on cityBlocks lots + plaza props: world/cityFill.js)     ?cityQuality=low|medium|high (default medium)
+//   ?peds=0              disable the pedestrians (world/pedestrians.js)     ?pedQuality=low|medium|high (default = cityQuality)
+//   ?traffic=0           disable the AI traffic (world/traffic.js)     ?trafficQuality=low|medium|high (default medium: 60 / 120 / 200 cars)   ?trafficDensity=0..2 multiplier on the per-lane car targets
 //   ?cityShadows=1       let near buildings cast shadows (expensive)
 // Mouse look: click the canvas (pointer lock), mouse orbits the camera, B looks back, right stick on a pad; settings in the tuning panel (Camera folder).
 //   ?spawn=x,z[,yawDeg]  dev: override the spawn (yaw like markers: 0 = +X east, 90 = +Z south)
@@ -25,6 +27,11 @@ import { createTuningPanel } from '../vehicles/tuningPanel.js';
 import { addWedgeCollider, wedgeMesh } from '../vehicles/wedge.js';
 import { createScatter } from '../world/scatter.js';
 import { createCity } from '../world/cityFill.js';
+import { createEntityWorld } from '../world/entities.js';
+import { createEntityRenderer } from '../world/entityRender.js';
+import { buildPedNetwork } from '../world/pedPaths.js';
+import { createPedestrians, PED_QUALITY, crossingBusy as pedCrossingBusy } from '../world/pedestrians.js';
+import { createTraffic, registerTrafficRender, createTrafficColliders, trafficCaps } from '../world/traffic.js';
 
 const params = new URLSearchParams(location.search);
 const mapUrl = params.get('map') || '/maps/sample/';
@@ -104,6 +111,24 @@ async function main() {
   const entityDemo = params.get('entityDemo') === '1' ? (await import('../world/entityDemo.js')).createEntityDemo({ THREE, scene, heightAt: map.heightAt, n: +(params.get('entityN') || 2000) }) : null;
   if (entityDemo) addEventListener('pagehide', () => entityDemo.dispose());
 
+  // ---- shared entity world (traffic 6b + pedestrians 6c): ONE world + renderer for every kind, stored on window so whichever hook runs first creates it. ?peds=0 turns the pedestrians off ----
+  const pedQ = params.get('pedQuality') || params.get('cityQuality') || 'medium';
+  const pedNet = params.get('peds') === '0' || !map.roadDetail ? null : buildPedNetwork({ roads: map.roads, roadDetail: map.roadDetail, junctions: map.junctions, blocks: city?.gen?.blocks || [], paintAt: (x, z) => map.surfaceAt(x, z).weights[7] });
+  const trafficOn = params.get('traffic') !== '0' && !!map.roads?.length, trafficQ = params.get('trafficQuality') || 'medium', trafficDensity = Math.min(2, Math.max(0, +(params.get('trafficDensity') ?? 1) || 0));
+  let entityWorld = window.__entityWorld || null, entityRenderer = window.__entityRenderer || null;
+  if ((pedNet?.m || trafficOn) && !entityWorld) {
+    entityWorld = window.__entityWorld = createEntityWorld({ seed: 1, caps: { car: trafficCaps(trafficQ), ped: { cap: PED_QUALITY[pedQ] || 150, simRadius: 250, cullRadius: 210, farRate: 2 }, cart: 16, prop: 512 } });
+    entityRenderer = window.__entityRenderer = createEntityRenderer({ THREE, scene, ew: entityWorld });
+  }
+  const peds = pedNet && pedNet.m && entityWorld ? createPedestrians({ ew: entityWorld, net: pedNet, heightAt: map.heightAt, signalState: (g) => map.signalState(g), quality: pedQ, THREE, er: entityRenderer }) : null;
+  if (peds) addEventListener('pagehide', () => peds.dispose());
+  // traffic (6b): AI cars on the lane graph; created after the peds so their system runs first and fills pedCrossingBusy (zebra yielding); ?traffic=0 turns it off
+  const traffic = trafficOn && entityWorld ? createTraffic({ ew: entityWorld, map, quality: trafficQ, density: 0.75 * trafficDensity, crossingBusy: pedCrossingBusy, visible: (() => { const fr = new THREE.Frustum(), m = new THREE.Matrix4(), v = new THREE.Vector3(); return (x, z) => { m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); fr.setFromProjectionMatrix(m); return fr.containsPoint(v.set(x, map.heightAt(x, z) + 1, z)); }; })() }) : null;
+  const trafficView = traffic ? registerTrafficRender({ THREE, er: entityRenderer, ew: entityWorld, GLTFLoader }) : null;
+  if (traffic) { traffic.active = false; trafficView.ready.then((r) => { traffic.active = true; console.log('[traffic] models ready, tris', r.tris.join('/')); }); }   // cars appear once their GLBs are built
+  const trafficColliders = traffic ? createTrafficColliders({ RAPIER, world, ew: entityWorld }) : null;
+  if (traffic) addEventListener('pagehide', () => { trafficColliders.dispose(); trafficView.dispose(); });
+
   const input = createInput();
   input.mouseLook(renderer.domElement); // click the canvas = pointer lock = free look (cameraLook.js)
   const settings = loadSettings(), look = newLook(), lookView = { yaw: 0, pitch: 0 };
@@ -165,6 +190,7 @@ async function main() {
     sun.target.updateMatrixWorld();
     city?.update(dt, p);    // buildings: cull / LOD sort for this view, keeps the building + bollard colliders round the car
     entityDemo?.update(dt, p, now / 1000);
+    if (entityWorld) { entityWorld.update(dt, p); entityRenderer.update(p, now / 1000); trafficColliders?.update(p.x, p.z); } // all entity systems (pedestrians, traffic) + their instanced meshes
     scatter?.update(dt, p); // after the camera moved: culls / LOD-sorts the instances for this view, keeps the trunk colliders round the car
     renderer.render(scene, camera);
 
@@ -183,7 +209,7 @@ async function main() {
     renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); return url;
   };
   window.__game = { shot, THREE, RAPIER, vehicle, map, world, input, camera, chase, scene, renderer, stats, car, profile,
-    scatter, city, entityDemo, reset: resetUpright, setInput: (o) => { input.override = o; }, tuning, spawn };
+    scatter, city, entityDemo, entityWorld, peds, traffic, reset: resetUpright, setInput: (o) => { input.override = o; }, tuning, spawn };
 }
 
 // marker -> else centre-nearest drivable spot. returns { x, z, yaw } with yaw in Vehicle convention (forward = (sin yaw, cos yaw) in x,z)

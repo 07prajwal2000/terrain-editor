@@ -148,7 +148,7 @@ export function createCity({ THREE, map, scene, camera, RAPIER, physicsWorld, ba
     if (wt === null || gt === null) return null;
     m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: isGlass(k) ? 0.25 : 0.9, metalness: k === 'metal' ? 0.4 : 0 });
     if (k === 'shopGlass' && !wt) { m.roughness = 0.12; m.metalness = 0.5; m.color.setRGB(0.35, 0.38, 0.42); }   // plain dark reflective until shop glass gets window textures
-    if (PAVING[k]) { m.map = pavingTex(k); m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -2; }
+    if (PAVING[k]) { m.map = pavingTex(k); m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -4; m.renderOrder = 1; }
     if (k === 'plaster' && !wt) m.map = stucco || (stucco = stuccoTex());
     if (k === 'crownLit') { m.emissive.set(0xffe2a0); m.emissiveIntensity = 0.6; }
     if (wt) { m.map = wt.tex; m.emissiveMap = wt.emissive; m.emissive.set(0xffffff); m.emissiveIntensity = 0.15; if (mask) patchTintMask(m); }
@@ -191,7 +191,10 @@ export function createCity({ THREE, map, scene, camera, RAPIER, physicsWorld, ba
       geo.setAttribute('position', new THREE.BufferAttribute(a.pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(a.nor, 3));
       geo.setAttribute('uv', new THREE.BufferAttribute(a.uv, 2)); geo.setAttribute('color', new THREE.BufferAttribute(a.col, 3));
       geo.setIndex(new THREE.BufferAttribute(a.pos.length / 3 > 65535 ? a.idx : Uint16Array.from(a.idx), 1)); geo.computeBoundingSphere();
-      const m = new THREE.Mesh(geo, material(k)); m.matrixAutoUpdate = false; m.receiveShadow = near; m.castShadow = near && opt.shadows; g.add(m);
+      const mat = material(k);
+      const m = new THREE.Mesh(geo, mat); m.matrixAutoUpdate = false; m.receiveShadow = near; m.castShadow = near && opt.shadows;
+      if (mat.renderOrder) m.renderOrder = mat.renderOrder;
+      g.add(m);
     }
     return g;
   }

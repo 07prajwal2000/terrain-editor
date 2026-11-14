@@ -21,7 +21,7 @@ import { BLOCK_CONFIG } from './cityBlocks.js';
 import earcut from 'three/src/extras/lib/earcut.js';   // pure JS, no THREE runtime
 
 const CHUNK = BLOCK_CONFIG.chunk, MAX_BURY = 1.5, EMBED = 0.1, PLINTH_SINK = 0.3, PLINTH_TOP = 0.3, PLINTH_COL = { stone: [0.5, 0.48, 0.45] };
-const PAVE = { lift: 0.04, maxEdge: 8, band: 1.2, col: { paving: [0.66, 0.64, 0.6], pavingPlaza: [0.72, 0.7, 0.66], pavingBand: [0.42, 0.41, 0.4] } };
+const PAVE = { lift: 0.08, maxEdge: 2.5, band: 1.2, col: { paving: [0.66, 0.64, 0.6], pavingPlaza: [0.72, 0.7, 0.66], pavingBand: [0.42, 0.41, 0.4] } };
 const HOUSE_IMP_COL = { siding: [0.85, 0.83, 0.78], roofFlat: [0.3, 0.3, 0.32] };
 
 // merge key: 'mat' or 'mat|style:variant' when the building picked a window texture for that material (towerKit tex)
@@ -56,7 +56,7 @@ function merge(items) { // items [{ prims, x, y, z, yaw, tex? }] -> Map(key -> g
 // ---- paved ground (downtown / rowhouse blocks): polygon (+ holes) -> earcut -> triangles split to <= maxEdge, draped on heightAt + lift; uv in metres
 const area2 = (P) => { let a = 0; for (let i = 0; i < P.length; i++) { const [x0, z0] = P[i], [x1, z1] = P[(i + 1) % P.length]; a += x0 * z1 - x1 * z0; } return a; };
 function offsetPoly(P, d) { // d > 0 = outward (miter, clamped); fine for the mostly convex block / plaza rings
-  const sg = area2(P) > 0 ? -1 : 1, n = P.length, out = [];
+  const sg = area2(P) > 0 ? 1 : -1, n = P.length, out = [];
   for (let i = 0; i < n; i++) {
     const a = P[(i + n - 1) % n], b = P[i], c = P[(i + 1) % n];
     const e1 = [b[0] - a[0], b[1] - a[1]], e2 = [c[0] - b[0], c[1] - b[1]], l1 = Math.hypot(...e1) || 1, l2 = Math.hypot(...e2) || 1;
@@ -71,7 +71,17 @@ function pavePrim(mat, outer, holes, heightAt) {
   for (const [x, z] of outer) flat.push(x, z);
   for (const h of holes) { hi.push(flat.length / 2); for (const [x, z] of h) flat.push(x, z); }
   const tri = earcut(flat, hi.length ? hi : null), pos = [], idx = [], seen = new Map();
-  const put = (x, z) => { const k = x.toFixed(2) + ',' + z.toFixed(2); let i = seen.get(k); if (i === undefined) { seen.set(k, i = pos.length / 3); pos.push(x, heightAt(x, z) + PAVE.lift, z); } return i; };
+  const sampleH = (x, z) => {
+    const d = 1.2;
+    return Math.max(
+      heightAt(x, z),
+      heightAt(x - d, z), heightAt(x + d, z),
+      heightAt(x, z - d), heightAt(x, z + d),
+      heightAt(x - d, z - d), heightAt(x + d, z - d),
+      heightAt(x - d, z + d), heightAt(x + d, z + d),
+    );
+  };
+  const put = (x, z) => { const k = x.toFixed(2) + ',' + z.toFixed(2); let i = seen.get(k); if (i === undefined) { seen.set(k, i = pos.length / 3); pos.push(x, sampleH(x, z) + PAVE.lift, z); } return i; };
   const sub = (a, b, c, d) => { // a, b, c = [x, z]
     const l = [Math.hypot(b[0] - c[0], b[1] - c[1]), Math.hypot(c[0] - a[0], c[1] - a[1]), Math.hypot(a[0] - b[0], a[1] - b[1])], i = l.indexOf(Math.max(...l));
     if (l[i] <= PAVE.maxEdge || d > 8) { idx.push(put(...a), put(...c), put(...b)); return; }   // ponytail: T-junctions not stitched (hairline gaps possible), fine at +lift
