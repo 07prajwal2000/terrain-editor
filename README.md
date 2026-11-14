@@ -6,6 +6,10 @@ built-in terrain map editor and a documented export format. Build a map in
 
 Vite + Three.js + Rapier, plain JavaScript ES modules, no build step beyond Vite.
 
+![Downtown skyline across the river](docs/gallery/01-hero.webp)
+
+More screenshots: [docs/gallery](docs/gallery/README.md).
+
 Last verified: 2026-11-09 · three 0.187.0 · @dimforge/rapier3d-compat 0.21.0 · Node 24.14.0
 
 ## Features

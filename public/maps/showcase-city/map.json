@@ -1,0 +1,68 @@
+{
+ "formatVersion": 1,
+ "N": 1024,
+ "worldSizeMeters": 1200,
+ "maxHeightMeters": 200,
+ "cellSizeMeters": 1.171875,
+ "seaLevel": 0.1,
+ "seaLevelMeters": 20,
+ "classes": [
+  {
+   "id": 0,
+   "name": "grass",
+   "color": "#5da130"
+  },
+  {
+   "id": 1,
+   "name": "forest",
+   "color": "#1f5c2a"
+  },
+  {
+   "id": 2,
+   "name": "dirt",
+   "color": "#8a6a43"
+  },
+  {
+   "id": 3,
+   "name": "sand",
+   "color": "#e0cf8f"
+  },
+  {
+   "id": 4,
+   "name": "rock",
+   "color": "#7d7d7d"
+  },
+  {
+   "id": 5,
+   "name": "snow",
+   "color": "#f2f6ff"
+  },
+  {
+   "id": 6,
+   "name": "road",
+   "color": "#333333"
+  },
+  {
+   "id": 7,
+   "name": "city",
+   "color": "#b0a0c0"
+  }
+ ],
+ "files": {
+  "height16": "heightmap16.png",
+  "heightRaw16": "heightmap.r16",
+  "splat0": "splat0.png",
+  "splat1": "splat1.png",
+  "biomeColor": "biome_color.png",
+  "water": "water.png",
+  "roads": "roads.json",
+  "markers": "markers.json"
+ },
+ "encodings": {
+  "height": "raw16 LE / 65535 * maxHeightMeters",
+  "splat0": "RGBA8 classes 0-3, channels sum to 255 with splat1",
+  "water": "16-bit gray, 0 none, (v-1)/65534 * maxHeightMeters"
+ },
+ "driveSide": "right",
+ "signStyle": "eu"
+}

@@ -1,0 +1,18 @@
+{
+  "note": "Gallery shots. In-game shots: open /play.html?<params>, wait until city/scatter have built, run window.__game.shot(w,h) and POST the data URL to scripts/shot-server.mjs. Pages marked 'screenshot' are plain browser screenshots (see docs/gallery/README.md). cam/look are world metres (x,y,z); spawn = x,z,yawDeg.",
+  "size": [1600, 900],
+  "shots": [
+    { "out": "01-hero.webp", "map": "showcase-city", "params": "spawn=752,481,180&cam=775,39.5,486&look=470,62,478&fov=48&hideUI=1&sun=9,100&cityQuality=high" },
+    { "out": "02-downtown-aerial.webp", "map": "showcase-city", "params": "spawn=470,640,0&cam=330,150,650&look=470,40,470&fov=50&hideUI=1&sun=40,-60&cityQuality=high" },
+    { "out": "03-rowhouse-terrace.webp", "map": "showcase-city", "params": "spawn=330,203,0&cam=285,39,204&look=400,42,200&fov=60&hideUI=1&sun=30,-70&cityQuality=high" },
+    { "out": "04-suburbs.webp", "map": "showcase-city", "params": "spawn=250,903,0&cam=200,39,906&look=330,41,900&fov=60&hideUI=1&sun=30,-60&cityQuality=high" },
+    { "out": "05-signalled-junction.webp", "map": "showcase-city", "params": "spawn=407,648,-90&cam=414,38.8,672&look=410,39,585&fov=62&hideUI=1&sun=28,-40&cityQuality=high" },
+    { "out": "06-river-bridge.webp", "map": "showcase-city", "params": "spawn=742,481,0&cam=735,40,545&look=800,32,470&fov=55&hideUI=1&sun=35,-120&cityQuality=high" },
+    { "out": "07-mountains.webp", "map": "showcase-nature", "params": "spawn=950,590,-100&cam=1330,150,960&look=1650,100,560&fov=58&hideUI=1&sun=32,-120&scatterQuality=high" },
+    { "out": "08-lake-beach.webp", "map": "showcase-nature", "params": "spawn=950,590,-100&cam=860,88,1010&look=1150,42,1230&fov=65&hideUI=1&sun=30,-100&scatterQuality=high" },
+    { "out": "09-country-road.webp", "map": "showcase-nature", "params": "spawn=792,1280,-90&hideUI=1&sun=22,-60&scatterQuality=high", "note": "no cam: the chase camera follows the car" },
+    { "out": "10-editor.jpg", "page": "editor.html", "screenshot": true, "note": "load showcase-city/map.tmap (node scripts/make-showcase-maps.mjs city --tmap) via the Open button, Paint tool, drag a stroke" },
+    { "out": "11-garage.jpg", "page": "garage.html", "screenshot": true },
+    { "out": "12-house-variety.jpg", "page": "house-preview.html", "screenshot": true }
+  ]
+}
