@@ -6,5 +6,5 @@ import { resolve } from 'node:path';
 export default defineConfig({
   server: { host: '127.0.0.1' },
   optimizeDeps: { exclude: ['@dimforge/rapier3d-compat'] },
-  build: { rollupOptions: { input: { main: resolve(import.meta.dirname, 'index.html'), editor: resolve(import.meta.dirname, 'editor.html'), garage: resolve(import.meta.dirname, 'garage.html'), play: resolve(import.meta.dirname, 'play.html') } } },
+  build: { rollupOptions: { input: { main: resolve(import.meta.dirname, 'index.html'), editor: resolve(import.meta.dirname, 'editor.html'), garage: resolve(import.meta.dirname, 'garage.html'), play: resolve(import.meta.dirname, 'play.html'), housePreview: resolve(import.meta.dirname, 'house-preview.html'), cityKitPreview: resolve(import.meta.dirname, 'city-kit-preview.html') } } },
 });

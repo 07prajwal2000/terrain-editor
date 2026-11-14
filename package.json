@@ -18,7 +18,7 @@
     "cars": "node scripts/cars/run.mjs",
     "nature:lods": "node scripts/nature/build.mjs nature --lods-only",
     "city:lods": "node scripts/nature/build.mjs city --lods-only",
-    "test:cityfill": "node scripts/test-city-fill.mjs",
+    "test:citychunk": "node scripts/test-city-chunk.mjs",
     "test:scatter": "node scripts/test-scatter.mjs"
   },
   "dependencies": {

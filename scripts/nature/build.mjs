@@ -84,8 +84,8 @@ async function addLods() {
   console.log(`LODs: ${man.assets.filter((e) => e.lods).length} assets -> ${glb} (${(fs.statSync(glb).size / 1024).toFixed(0)} KB)`);
 }
 
-// ---- city building LODs (read by src/world/cityFill.js) ----
-// (The simplified-LOD experiment was dropped: the kit does not simplify cleanly; far buildings use the cheap brick proxy of cityKit.js planProxy.) Removes any old <name>_LOD nodes from city.glb and writes
+// ---- city.glb manifest body data (legacy: the procedural city in src/world/cityFill.js now only borrows city.glb textures) ----
+// (The simplified-LOD experiment was dropped: the kit does not simplify cleanly.) Removes any old <name>_LOD nodes from city.glb and writes
 // the manifest field body:{x0,x1,z0,z1,h} = bounds of the brick body (facade = local +Z at z=0, pivot at the front, y=0 = ground floor; the trim /
 // cornice overhang and the entrance steps are NOT in it). Works on the written files (npm run city:lods), idempotent.
 async function addCityLods() {

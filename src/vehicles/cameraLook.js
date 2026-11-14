@@ -9,7 +9,7 @@
 export const PITCH_MIN = -15 * Math.PI / 180, PITCH_MAX = 45 * Math.PI / 180; // offsets from the default chase elevation (~10 deg) => roughly -5..+55 deg
 export const RECENTRE_MIN = 2, RECENTRE_FULL = 25, RECENTRE_RATE = 3;         // m/s, m/s, 1/s
 const STICK_YAW = 2.8, STICK_PITCH = 1.6, BEHIND_RATE = 6;                    // rad/s at full deflection, 1/s
-export const LOOK_DEFAULTS = { sens: 0.0022, invertY: false, idleDelay: 1.7, shake: 0.05 }; // sens rad per mouse pixel, delay s, road shake amplitude m
+export const LOOK_DEFAULTS = { sens: 0.0022, invertY: false, idleDelay: 1.7, shake: 0.05, zoom: 1 }; // zoom = chase distance multiplier // sens rad per mouse pixel, delay s, road shake amplitude m
 
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 export const wrapAngle = (a) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; }; // [-pi, pi)

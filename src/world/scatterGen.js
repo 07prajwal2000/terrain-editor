@@ -57,8 +57,8 @@ export const SCATTER_CONFIG = {
     bush:        { cell: 3,   minD: 1.8, maxSlope: 40, maxSnow: 0.25, maxCity: 0.25, shore: 2.5, road: 1.6, junction: 3, marker: 4, scale: [0.8, 1.3], sink: [0.03, 0.08], tilt: 3 },
     rock:        { cell: 6,   minD: 4,   maxSlope: 75, maxSnow: 0.7,  maxCity: 0.25, shore: 1.5, road: 2.5, junction: 4, marker: 5, scale: [0.6, 3.0], sink: [0.15, 0.25], tilt: 15 },   // sink = fraction of the rock height
     rockpebble:  { maxSlope: 80, maxSnow: 0.8, maxCity: 0.5, shore: 0.5, road: 0.4, junction: 0, marker: 0, scale: [0.8, 1.5], sink: [0.01, 0.03] },
-    groundcover: { cell: 1.5, minD: 0, maxSlope: 40, maxSnow: 0.4,  maxCity: 0.5,  shore: 0.6, road: 0.5, junction: 1, marker: 0, scale: [0.75, 1.4], sink: [0, 0.03] },
-    flower:      { cell: 1.6, minD: 0, maxSlope: 30, maxSnow: 0.1,  maxCity: 0.5,  shore: 0.8, road: 0.6, junction: 1, marker: 0, scale: [0.8, 1.3], sink: [0, 0.02] },
+    groundcover: { cell: 1.5, minD: 0, maxSlope: 40, maxSnow: 0.4,  maxCity: 0.5,  shore: 0.6, road: 0.5, junction: 1, marker: 0, scale: [0.22, 0.4], sink: [0, 0.03] },
+    flower:      { cell: 1.6, minD: 0, maxSlope: 30, maxSnow: 0.1,  maxCity: 0.5,  shore: 0.8, road: 0.6, junction: 1, marker: 0, scale: [0.3, 0.5], sink: [0, 0.02] },
     pebble:      { cell: 2.0, minD: 0, maxSlope: 50, maxSnow: 0.5,  maxCity: 0.5,  shore: 0.4, road: 0.3, junction: 1, marker: 0, scale: [0.8, 1.4], sink: [0, 0.02] },
   },
   // species used (names from nature.json). Fewer variants = fewer draw calls (every (species, material, chunk) is one draw).
@@ -156,7 +156,7 @@ function buildRoadIndex(map, reach) {
 }
 
 // ================================================================================================
-// extraBlocked(x, z, margin) -> boolean (optional): extra exclusion footprints, e.g. the city fill's building boxes (cityGen.js blocked()); margin = the category's road margin.
+// extraBlocked(x, z, margin, cat) -> boolean (optional): extra exclusions, e.g. cityBlocks.js blockedFor() (lots, plazas, footprints); margin = the category's road margin, cat = scatter category.
 export function createScatterGen({ map, manifest, config, override = null, extraExclusions = [], extraBlocked = null }) {
   const cfg = config ? deepMerge(SCATTER_CONFIG, config) : SCATTER_CONFIG;
   const ov = override || {};
@@ -219,7 +219,7 @@ export function createScatterGen({ map, manifest, config, override = null, extra
     for (const j of junctions) { const r = j.radius + c.junction; if ((x - j.x) * (x - j.x) + (z - j.z) * (z - j.z) < r * r) return null; }
     if (c.marker > 0) for (const m of markers) { const r = m.r + c.marker; if ((x - m.x) * (x - m.x) + (z - m.z) * (z - m.z) < r * r) return null; }
     for (const e of circles) { if (e.cats && !e.cats.includes(cat)) continue; if ((x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r * e.r) return null; }
-    if (extraBlocked && extraBlocked(x, z, c.road)) return null;
+    if (extraBlocked && extraBlocked(x, z, c.road, cat)) return null;
     if (!dryWithMargin(x, z, c.shore)) return null;
     return sl;
   }
@@ -319,7 +319,7 @@ export function createScatterGen({ map, manifest, config, override = null, extra
         const ang = hash(seed, gi, gj, salt + 20 + k * 3) * TAU, rad = a.radius * sc * 0.6 + 0.4 + hash(seed, gi, gj, salt + 21 + k * 3) * 2.2;
         const px = x + Math.cos(ang) * rad, pz = z + Math.sin(ang) * rad;
         if (px < 0 || pz < 0 || px > W || pz > W) continue;
-        const ps = map.surfaceAt(px, pz); if (ps.classId === 6 || ps.classId === 7 || !dryWithMargin(px, pz, pc.shore) || roadClear(px, pz) < pc.road || (extraBlocked && extraBlocked(px, pz, pc.road))) continue;
+        const ps = map.surfaceAt(px, pz); if (ps.classId === 6 || ps.classId === 7 || !dryWithMargin(px, pz, pc.shore) || roadClear(px, pz) < pc.road || (extraBlocked && extraBlocked(px, pz, pc.road, 'rockpebble'))) continue;
         const psl = slopeAt(px, pz); if (psl[2] > pc.maxSlope) continue;
         emit(out2, pickU('rockpebble', hash(seed, gi, gj, salt + 22 + k * 3)), px, heightAt(px, pz) - 0.02, pz, hash(seed, gi, gj, salt + 23 + k * 3) * TAU, pc.scale[0] + (pc.scale[1] - pc.scale[0]) * hash(seed, gi, gj, salt + 24 + k * 3), 0, 0);
       }

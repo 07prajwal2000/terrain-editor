@@ -198,7 +198,7 @@ function makeTerrainMaterial(THREE, splat0, splat1, classColors, worldSize) {
   };
   const mat = new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0 });
   mat.userData.uniforms = uniforms;
-  mat.customProgramCacheKey = () => 'splat-terrain-v1';
+  mat.customProgramCacheKey = () => 'splat-terrain-v4';
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, uniforms);
     sh.vertexShader = sh.vertexShader
@@ -220,6 +220,13 @@ float vnoise(vec2 p){
 // ===== PER-CLASS SURFACE HOOK: replace this body with texture fetches when textures exist =====
 vec3 classAlbedo(int c, vec2 wxz){
   if (c == 6) return vec3(0.30, 0.27, 0.21); // road class = neutral gravel shoulder; the asphalt is the road mesh (roads.js)
+  if (c == 7) { // city class = concrete paving: 1.2 m slabs, thin joints, per-slab tone; joints fade with fwidth to avoid aliasing
+    vec2 q = wxz / 1.2, f = fract(q), d = min(f, 1.0 - f) * 1.2;
+    float w = max(fwidth(wxz.x), fwidth(wxz.y)) + 1e-4;
+    float joint = (1.0 - smoothstep(0.015, 0.03 + w, min(d.x, d.y))) * (1.0 - smoothstep(0.3, 1.0, w));
+    vec3 base = vec3(0.62, 0.62, 0.60) * (0.92 + 0.14 * hash21(floor(q)));
+    return mix(base, base * 0.55, joint);
+  }
   return uClassColor[c];
 }
 `)
@@ -229,7 +236,7 @@ vec3 classAlbedo(int c, vec2 wxz){
   vec4 s0 = texture2D(uSplat0, suv), s1 = texture2D(uSplat1, suv);
   float w[8] = float[8](s0.r, s0.g, s0.b, s0.a, s1.r, s1.g, s1.b, s1.a);
   vec3 col = vec3(0.0);
-  for (int i = 0; i < 8; i++) col += w[i] * classAlbedo(i, vWP.xz);
+  for (int i = 0; i < 8; i++) col += w[i] * (i == 7 ? mix(classAlbedo(0, vWP.xz), classAlbedo(7, vWP.xz), smoothstep(0.5, 0.7, w[7])) : classAlbedo(i, vWP.xz)); // light city paint (residential) stays lawn, paving only from downtown-level paint (>0.5)
   float nz = vnoise(vWP.xz * 0.35) * 0.5 + vnoise(vWP.xz * 1.7) * 0.3 + vnoise(vWP.xz * 7.0) * 0.2;
   col *= 0.78 + 0.44 * nz;
   float steep = smoothstep(0.18, 0.42, 1.0 - normalize(vWN).y) * (1.0 - w[6] - w[7]); // steep faces -> rock tint

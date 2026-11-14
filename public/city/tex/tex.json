@@ -1,0 +1,58 @@
+{
+ "MI_RedBrick": {
+  "file": "MI_RedBrick.webp",
+  "size": [
+   2048,
+   2048
+  ]
+ },
+ "MI_Trim": {
+  "file": "MI_Trim.webp",
+  "size": [
+   2048,
+   2048
+  ]
+ },
+ "MI_Trim_MetalConcrete": {
+  "file": "MI_Trim_MetalConcrete.webp",
+  "size": [
+   2048,
+   2048
+  ]
+ },
+ "MI_FakeInterior_2": {
+  "file": "MI_FakeInterior_2.webp",
+  "size": [
+   512,
+   512
+  ]
+ },
+ "MI_FakeInterior_3": {
+  "file": "MI_FakeInterior_3.webp",
+  "size": [
+   512,
+   512
+  ]
+ },
+ "MI_FakeInterior_4": {
+  "file": "MI_FakeInterior_4.webp",
+  "size": [
+   512,
+   512
+  ]
+ },
+ "MI_Concrete": {
+  "file": "MI_Concrete.webp",
+  "size": [
+   2048,
+   2048
+  ]
+ },
+ "MI_Roof_Slate": {
+  "file": "MI_Roof_Slate.webp",
+  "size": [
+   2048,
+   2048
+  ]
+ }
+}

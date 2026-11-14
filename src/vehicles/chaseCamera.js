@@ -19,12 +19,14 @@ function smoothDamp(cur, target, vel, smoothTime, dt) { // Game Programming Gems
 const angDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
 
 export class ChaseCamera {
-  constructor(THREE, camera, { heightAt, dims, settings = { shake: 0.05 } }) {
+  constructor(THREE, camera, { heightAt, dims, settings = { shake: 0.05 }, RAPIER = null, world = null }) {
+    this.R = RAPIER; this.world = world; this.clip = 1; // clip: fraction of the pivot->camera distance kept after the wall raycast (smoothed outwards)
     this.T = THREE; this.camera = camera; this.heightAt = heightAt; this.mode = 0; this.settings = settings;
     this.ly = 0; this.lyVel = 0; this.lp = 0; this.lpVel = 0; this._lookInit = false; this._t = 0; this._o = [0, 0, 0];
     this._e = new THREE.Euler(); this._q2 = new THREE.Quaternion();
     const L = dims.length, H = dims.height;
     this.dist = Math.max(6.5, L * 1.15 + 3.2); this.height = H * 0.75 + 1.6; this.lookH = H * 0.45 + 0.4; this.hoodH = H * 0.82; this.hoodZ = L * 0.12;
+    this.minD = Math.hypot(L, dims.width) / 2 + 1.2; // car's half-diagonal + clearance: the camera never gets closer (horizontally) than this
     this.pos = [0, 0, 0]; this.vel = [0, 0, 0]; this.look = [0, 0, 0]; this.lvel = [0, 0, 0]; this.yaw = 0; this.yawVel = 0; this.fov = 62; this.lead = 0;
     this._v = new THREE.Vector3(); this._q = new THREE.Quaternion(); this.baseFov = 62;
   }
@@ -43,7 +45,10 @@ export class ChaseCamera {
     const fwd = this._v.set(0, 0, 1).applyQuaternion(this._q); // chassis forward
     const carYaw = Math.atan2(fwd.x, fwd.z), speed = s.speed, speedFrac = Math.min(speed / Math.max(veh.vTop, 1), 1.2);
     if (this.mode === 1) { // hood: rigidly on the (interpolated) body
-      const off = this._v.set(0, this.hoodH, this.hoodZ).applyQuaternion(this._q);
+      // tall boxy vehicles (bus, van, fire truck...) have no hood and no modelled interior: sit just in front of the windscreen instead of inside the cabin
+      // ponytail: height threshold, not per-model camera points; add a `hoodCam` entry to cars.json if a model needs a custom spot
+      const b = veh.bounds, z = b.max[1] - b.min[1] > 2.6 ? b.max[2] + 0.15 : this.hoodZ;
+      const off = this._v.set(0, this.hoodH, z).applyQuaternion(this._q);
       cam.position.set(pose.x + off.x, pose.y + off.y, pose.z + off.z);
       // a three.js camera looks down its local -Z and the car faces +Z, hence the extra 180 deg; then the look offset (yaw free, pitch limited)
       this._e.set(-Math.max(-0.26, Math.min(0.5, this.lp)), Math.PI + this.ly, 0, 'YXZ'); this._q2.setFromEuler(this._e);
@@ -59,7 +64,7 @@ export class ChaseCamera {
     { // angle spring on the shortest path
       const [v, vv] = smoothDamp(angDiff(this.yaw, target), 0, this.yawVel, 0.28, dt); this.yaw = target + v; this.yawVel = vv;
     }
-    const dist = this.dist * (1 + 0.22 * speedFrac), h = this.height * (1 + 0.1 * speedFrac);
+    const zoom = this.settings.zoom ?? 1, dist = this.dist * zoom * (1 + 0.22 * speedFrac), h = this.height * Math.sqrt(zoom) * (1 + 0.1 * speedFrac);
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     // look-at: ahead of the car, leaning into the turn
     const lat = veh.steer * -1; // + = left
@@ -76,11 +81,26 @@ export class ChaseCamera {
     // keep the camera out of the ground (and a minimum distance from the car so it never sits inside it)
     const gy = this.heightAt(this.pos[0], this.pos[2]) + MARGIN;
     if (this.pos[1] < gy) { this.pos[1] = gy; if (this.vel[1] < 0) this.vel[1] = 0; }
+    { // the spring lags behind hard braking / reversing and would swing into the body: push it out to minD, killing the inward velocity
+      const dx = this.pos[0] - pose.x, dz = this.pos[2] - pose.z, d = Math.hypot(dx, dz), minD = this.minD;
+      if (d < minD) {
+        const nx = d > 1e-3 ? dx / d : -sy, nz = d > 1e-3 ? dz / d : -cy;
+        this.pos[0] = pose.x + nx * minD; this.pos[2] = pose.z + nz * minD;
+        const vin = this.vel[0] * nx + this.vel[2] * nz; if (vin < 0) { this.vel[0] -= vin * nx; this.vel[2] -= vin * nz; }
+      }
+    }
     // free look: orbit the spring camera around the car (pivot = look height above the pose), rotate the look-at point by the same yaw
     const px = pose.x, py = pose.y + this.lookH, pz = pose.z, o = orbitOffset(this.pos[0] - px, this.pos[1] - py, this.pos[2] - pz, this.ly, this.lp, this._o);
     const cy_ = Math.cos(this.ly), sy_ = Math.sin(this.ly), lx = this.look[0] - px, lz = this.look[2] - pz;
     const cx = px + o[0], cz = pz + o[2];
     cam.position.set(cx, aboveGround(py + o[1], this.heightAt(cx, cz), MARGIN), cz);
+    if (this.world) { // walls: ray from the pivot to the camera (own chassis excluded); pull in instantly on a hit, ease back out
+      const ox = cam.position.x - px, oy = cam.position.y - py, oz = cam.position.z - pz, len = Math.hypot(ox, oy, oz);
+      const hit = len > 0.1 && this.world.castRay(new this.R.Ray({ x: px, y: py, z: pz }, { x: ox / len, y: oy / len, z: oz / len }), len + 0.4, true, undefined, undefined, undefined, veh.body);
+      const want = hit ? Math.max(0.05, (hit.timeOfImpact ?? hit.toi) - 0.4) / len : 1;
+      this.clip = want < this.clip ? want : Math.min(want, this.clip + dt * 1.5);
+      if (this.clip < 1) cam.position.set(px + ox * this.clip, py + oy * this.clip, pz + oz * this.clip);
+    }
     cam.lookAt(px + lx * cy_ + lz * sy_, this.look[1], pz - lx * sy_ + lz * cy_);
     const sh = (veh.state.shake || 0) * this.settings.shake;
     if (sh > 1e-4) { // road shake: a few incommensurate sines (deterministic, no allocation)

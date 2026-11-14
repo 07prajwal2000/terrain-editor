@@ -3,10 +3,11 @@
 //   ?testRamp            dev: a static ramp 30 m ahead of the spawn (spawn then faces +Z)
 //   ?scatter=0           disable the nature scatter (trees, bushes, rocks, grass: world/scatter.js)     ?scatterQuality=low|medium|high (default medium)
 //   ?scatterShadows=1    let near trees cast shadows (expensive)
-//   ?city=0              disable the city fill (buildings + street props along city roads: world/cityFill.js)     ?cityQuality=low|medium|high (default medium)
+//   ?city=0              disable the city (procedural buildings on cityBlocks lots + plaza props: world/cityFill.js)     ?cityQuality=low|medium|high (default medium)
 //   ?cityShadows=1       let near buildings cast shadows (expensive)
 // Mouse look: click the canvas (pointer lock), mouse orbits the camera, B looks back, right stick on a pad; settings in the tuning panel (Camera folder).
 //   ?spawn=x,z[,yawDeg]  dev: override the spawn (yaw like markers: 0 = +X east, 90 = +Z south)
+//   screenshots (dev, docs/gallery): ?cam=x,y,z&look=x,y,z[&fov=deg] fixed camera, ?hideUI=1 no HUD, ?sun=elevDeg,azimDeg (low elevation = warm light); window.__game.shot(w,h,mime,q) -> data URL
 // Debug hook: window.__game = { vehicle, map, world, input, camera, stats, THREE, reset(), setInput(obj|null) }.
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
@@ -51,6 +52,9 @@ async function main() {
   const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.4, 60000);
   addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
   const { sun } = setupSky(THREE, scene);
+  const nums = (k) => (params.get(k) || '').split(',').map(Number), shotCam = params.has('cam') && params.has('look') ? { pos: nums('cam'), look: nums('look') } : null;
+  if (params.has('fov')) { camera.fov = +params.get('fov'); camera.updateProjectionMatrix(); }
+  if (params.has('sun')) { const [el, az = 0] = nums('sun').map((d) => d * Math.PI / 180); sun.position.set(Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az)); if (el < 0.35) sun.color.set(0xffc58a); }
 
   await RAPIER.init();
   const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
@@ -71,7 +75,7 @@ async function main() {
   gltf.scene.updateMatrixWorld(true);
   const body = gltf.scene.getObjectByName('body') || gltf.scene;
   const bb = new THREE.Box3().setFromObject(body);
-  const profile = resolveProfile(car);
+  const profile = resolveProfile(car, 'arcade'); // default; switch to 'Realistic' in the ` tuning panel
   const vehicle = new Vehicle({
     RAPIER, world, map, car, profile, dt: DT,
     bounds: { min: bb.min.toArray(), max: bb.max.toArray() },
@@ -86,7 +90,7 @@ async function main() {
     addWedgeCollider(RAPIER, world, o); scene.add(wedgeMesh(THREE, o));
   }
 
-  // ---- city fill (buildings along city roads, bollards / planters; solid buildings near the car). Created BEFORE the scatter so trees keep off the buildings. ?city=0 turns it off ----
+  // ---- city fill (procedural buildings on city lots, plaza props; solid buildings near the car). Created BEFORE the scatter so trees keep off the buildings. ?city=0 turns it off ----
   const spawnExcl = [{ x: spawn.x, z: spawn.z, r: 12 }];
   const city = params.get('city') === '0' ? null : createCity({ THREE, map, scene, camera, RAPIER, physicsWorld: world, baseUrl: mapUrl,
     options: { quality: params.get('cityQuality') || 'medium', shadows: params.get('cityShadows') === '1', exclusions: spawnExcl } });
@@ -96,12 +100,16 @@ async function main() {
   const scatter = params.get('scatter') === '0' ? null : createScatter({ THREE, map, scene, camera, RAPIER, physicsWorld: world, baseUrl: mapUrl,
     options: { quality: params.get('scatterQuality') || 'medium', shadows: params.get('scatterShadows') === '1', exclusions: spawnExcl, extraBlocked: city && city.gen && city.gen.hasCity() ? city.blocked : null } });
   if (scatter) scatter.ready.catch(() => {});
+  // ---- entity layer debug demo (?entityDemo=1&entityN=2000) ----
+  const entityDemo = params.get('entityDemo') === '1' ? (await import('../world/entityDemo.js')).createEntityDemo({ THREE, scene, heightAt: map.heightAt, n: +(params.get('entityN') || 2000) }) : null;
+  if (entityDemo) addEventListener('pagehide', () => entityDemo.dispose());
 
   const input = createInput();
   input.mouseLook(renderer.domElement); // click the canvas = pointer lock = free look (cameraLook.js)
   const settings = loadSettings(), look = newLook(), lookView = { yaw: 0, pitch: 0 };
-  const chase = new ChaseCamera(THREE, camera, { heightAt: map.heightAt, dims: car.dimensions, settings });
+  const chase = new ChaseCamera(THREE, camera, { heightAt: map.heightAt, dims: car.dimensions, settings, RAPIER, world });
   const hud = createHud({ car, arch: ARCHETYPES[archetypeOf(car.id)].label });
+  if (params.get('hideUI') === '1') hud.root.style.display = 'none';
   const tuning = createTuningPanel({ vehicle, car, onMessage: (m) => hud.message(m), camera: settings });
 
   // shadow rig follows the car
@@ -151,10 +159,12 @@ async function main() {
     stepLook(look, dt, { dx: s.lookX, dy: s.lookY, sx: s.lookSX, sy: s.lookSY, behind: s.lookBehind }, vehicle.state.speed, settings);
     lookView.yaw = lookYaw(look); lookView.pitch = look.pitch;
     chase.update(dt, pose, vehicle, lookView);
+    if (shotCam) { camera.position.set(...shotCam.pos); camera.lookAt(...shotCam.look); }
     // shadow rig
     sun.target.position.set(pose.x, pose.y, pose.z); sun.position.set(pose.x + sunDir.x * 150, pose.y + sunDir.y * 150, pose.z + sunDir.z * 150);
     sun.target.updateMatrixWorld();
     city?.update(dt, p);    // buildings: cull / LOD sort for this view, keeps the building + bollard colliders round the car
+    entityDemo?.update(dt, p, now / 1000);
     scatter?.update(dt, p); // after the camera moved: culls / LOD-sorts the instances for this view, keeps the trunk colliders round the car
     renderer.render(scene, camera);
 
@@ -165,8 +175,15 @@ async function main() {
   }
   requestAnimationFrame((t) => { last = t; frame(t); });
 
-  window.__game = { THREE, RAPIER, vehicle, map, world, input, camera, chase, scene, renderer, stats, car, profile,
-    scatter, city, reset: resetUpright, setInput: (o) => { input.override = o; }, tuning, spawn };
+  // render at w x h (restores the size) and return the frame as a data URL; used by the gallery capture (scripts/shots.json)
+  const shot = (w = 1600, h = 900, mime = 'image/webp', q = 0.9) => {
+    const pr = renderer.getPixelRatio(); renderer.setPixelRatio(1); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+    if (shotCam) { camera.position.set(...shotCam.pos); camera.lookAt(...shotCam.look); }
+    renderer.render(scene, camera); const url = renderer.domElement.toDataURL(mime, q);
+    renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); return url;
+  };
+  window.__game = { shot, THREE, RAPIER, vehicle, map, world, input, camera, chase, scene, renderer, stats, car, profile,
+    scatter, city, entityDemo, reset: resetUpright, setInput: (o) => { input.override = o; }, tuning, spawn };
 }
 
 // marker -> else centre-nearest drivable spot. returns { x, z, yaw } with yaw in Vehicle convention (forward = (sin yaw, cos yaw) in x,z)

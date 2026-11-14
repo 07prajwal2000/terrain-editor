@@ -19,6 +19,12 @@ export function createTuningPanel({ vehicle, car, onMessage, camera }) {
   gui.domElement.style.cssText += ';position:fixed;top:56px;right:12px;z-index:20;max-height:80vh;overflow:auto';
   const apply = () => vehicle.applyProfile();
   const ctrls = [];
+  const sel = { style: p.style || 'sim' };
+  gui.add(sel, 'style', { 'Arcade (GTA V-ish)': 'arcade', Realistic: 'sim' }).name('Handling preset').onChange((s) => {
+    for (const k of Object.keys(p)) delete p[k]; // arcade sets `style`, sim doesn't: clear so no stale key survives
+    Object.assign(p, resolveProfile(car, s)); apply(); ctrls.forEach((c) => c.updateDisplay());
+    onMessage?.(`Handling: ${s === 'arcade' ? 'Arcade' : 'Realistic'}`);
+  });
   for (const [name, keys] of Object.entries(GROUPS)) {
     const f = gui.addFolder(name); if (name !== 'Engine + brakes') f.close();
     for (const k of keys) { if (!(k in p) || !TUNABLE[k]) continue; const [mn, mx, st] = TUNABLE[k]; ctrls.push(f.add(p, k, mn, mx, st).onChange(apply)); }
@@ -28,7 +34,7 @@ export function createTuningPanel({ vehicle, car, onMessage, camera }) {
   if (camera) {
     const cf = gui.addFolder('Camera (saved in browser)'), save = () => saveSettings(camera);
     cf.add(camera, 'sens', 0.0005, 0.008, 0.0001).name('Mouse sensitivity (rad/px)').onChange(save); cf.add(camera, 'invertY').name('Invert mouse Y').onChange(save);
-    cf.add(camera, 'idleDelay', 0.3, 6, 0.1).name('Recentre delay (s)').onChange(save); cf.add(camera, 'shake', 0, 0.2, 0.005).name('Road shake (m)').onChange(save); cf.close();
+    cf.add(camera, 'idleDelay', 0.3, 6, 0.1).name('Recentre delay (s)').onChange(save); cf.add(camera, 'shake', 0, 0.2, 0.005).name('Road shake (m)').onChange(save); cf.add(camera, 'zoom', 0.6, 2.5, 0.05).name('Zoom distance (x)').onChange(save); cf.close();
   }
   const copy = () => {
     const json = JSON.stringify({ [car.id]: profileDiff(car, p) }, null, 2);
@@ -36,7 +42,7 @@ export function createTuningPanel({ vehicle, car, onMessage, camera }) {
     (navigator.clipboard?.writeText(json) || Promise.reject()).then(() => onMessage?.('Profile JSON copied'), () => { window.prompt('Copy the overrides:', json); });
   };
   gui.add({ copy }, 'copy').name('Copy profile JSON');
-  gui.add({ reset() { Object.assign(p, resolveProfile(car)); apply(); ctrls.forEach((c) => c.updateDisplay()); } }, 'reset').name('Reset to defaults');
+  gui.add({ reset() { Object.assign(p, resolveProfile(car, p.style)); apply(); ctrls.forEach((c) => c.updateDisplay()); } }, 'reset').name('Reset to defaults');
   gui.hide();
   return { gui, toggle() { gui.show(gui._hidden); } };
 }

@@ -172,7 +172,22 @@ export function archetypeOf(carId) { return CAR_ARCHETYPE[carId] || 'sedan'; }
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
 // car: a cars.json entry. Returns a fresh, fully resolved profile (safe to mutate).
-export function resolveProfile(car) {
+// ARCADE style (GTA V-ish): forgiving, grippy, little body pitch/roll, strong assists. Applied on top of the sim profile.
+// Low leanPitch + stiffer bump damping is also what stops hard braking at speed from bottoming the front suspension
+// (nose hull hits the ground -> contact impulse launches the car).
+export function arcadify(p) {
+  p.assist = Math.max(p.assist, 0.9);
+  p.gripFront *= 1.25; p.gripRear = Math.max(p.gripRear * 1.3, p.gripFront * 1.05); // rear >= front: stable, no snap oversteer
+  p.steerGrip = Math.max(p.steerGrip, 1.6); p.steerRate *= 1.5; p.steerReturn *= 1.4; p.steerMinFrac = Math.min(1, p.steerMinFrac * 1.4);
+  p.leanPitch *= 0.25; p.leanRoll *= 0.45; p.antiRoll *= 1.6;
+  p.suspCompression *= 1.4; p.suspMaxForceX = Math.max(p.suspMaxForceX, 6);
+  p.comFrac *= 0.85; p.angDamp += 0.6; p.handbrakeSlip = Math.min(p.handbrakeSlip + 0.1, 1);
+  p.style = 'arcade';
+  return p;
+}
+
+// style: 'sim' (raw archetype numbers, what the tests check) | 'arcade'
+export function resolveProfile(car, style = 'sim') {
   const arch = archetypeOf(car.id);
   const p = { ...clone(ARCHETYPES[arch]), ...clone(CAR_OVERRIDES[car.id] || {}) };
   if (CAR_OVERRIDES[car.id]?.inertia) p.inertia = { ...ARCHETYPES[arch].inertia, ...CAR_OVERRIDES[car.id].inertia };
@@ -181,14 +196,14 @@ export function resolveProfile(car) {
   p.mass ??= Math.round(p.density * d.length * d.width * d.height / 10) * 10; // ponytail: bbox volume is a crude mass proxy; set `mass` per car where it matters
   p.comZ ??= 0;
   p.reverseKmh ??= 30;
-  return p;
+  return style === 'arcade' ? arcadify(p) : p;
 }
 
 // Overrides = everything that differs from the freshly resolved base (used by the tuning panel's "copy JSON").
 export function profileDiff(car, profile) {
-  const base = resolveProfile(car), out = {};
+  const base = resolveProfile(car, profile.style), out = {};
   for (const k of Object.keys(profile)) {
-    if (k === 'archetype' || k === 'carId' || k === 'label') continue;
+    if (k === 'archetype' || k === 'carId' || k === 'label' || k === 'style') continue;
     if (JSON.stringify(profile[k]) !== JSON.stringify(base[k])) out[k] = profile[k];
   }
   return out;
